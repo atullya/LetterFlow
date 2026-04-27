@@ -1,0 +1,198 @@
+@model LetterTemplatePractice.Models.ViewModels.ProfileSettingsViewModel
+@{
+    ViewData["Title"] = "Settings";
+    var passwordVm = new LetterTemplatePractice.Models.ViewModels.ChangePasswordViewModel();
+}
+
+<div class="settings-shell">
+    <div class="settings-header">
+        <h1 class="settings-title">Settings</h1>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert-banner alert-banner-success">
+            <i class="fas fa-check-circle"></i> @TempData["Success"]
+        </div>
+    }
+
+    <div class="settings-grid">
+        <!-- LEFT: nav tabs -->
+        <nav class="settings-nav">
+            <a href="#profile" class="settings-nav-link active" data-tab="profile">
+                <i class="fas fa-user"></i> Profile
+            </a>
+            <a href="#password" class="settings-nav-link" data-tab="password">
+                <i class="fas fa-lock"></i> Password
+            </a>
+            <a href="#avatar" class="settings-nav-link" data-tab="avatar">
+                <i class="fas fa-image"></i> Photo
+            </a>
+        </nav>
+
+        <!-- RIGHT: panels -->
+        <div class="settings-panels">
+
+            <!-- Profile panel -->
+            <div class="settings-panel active" id="panel-profile">
+                <h2 class="settings-panel-title">Profile</h2>
+                <p class="settings-panel-sub">Update your display name, username and email.</p>
+
+                <form asp-action="Profile" asp-controller="Settings" method="post" class="settings-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="CurrentAvatarUrl" />
+
+                    <div asp-validation-summary="ModelOnly" class="form-error-summary"></div>
+
+                    <div class="form-row">
+                        <label asp-for="DisplayName" class="form-label">Display Name</label>
+                        <input asp-for="DisplayName" class="form-control" placeholder="How you appear to others" />
+                        <span asp-validation-for="DisplayName" class="field-error"></span>
+                    </div>
+
+                    <div class="form-row">
+                        <label asp-for="Username" class="form-label">Username</label>
+                        <input asp-for="Username" class="form-control" />
+                        <span asp-validation-for="Username" class="field-error"></span>
+                    </div>
+
+                    <div class="form-row">
+                        <label asp-for="Email" class="form-label">Email</label>
+                        <input asp-for="Email" class="form-control" type="email" />
+                        <span asp-validation-for="Email" class="field-error"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </form>
+            </div>
+
+            <!-- Password panel -->
+            <div class="settings-panel" id="panel-password">
+                <h2 class="settings-panel-title">Change Password</h2>
+                <p class="settings-panel-sub">Choose a strong password of at least 8 characters.</p>
+
+                @if (TempData["PasswordError"] != null)
+                {
+                    <div class="alert-banner alert-banner-error">
+                        <i class="fas fa-exclamation-circle"></i> @TempData["PasswordError"]
+                    </div>
+                }
+                @if (TempData["PasswordSuccess"] != null)
+                {
+                    <div class="alert-banner alert-banner-success">
+                        <i class="fas fa-check-circle"></i> @TempData["PasswordSuccess"]
+                    </div>
+                }
+
+                <form asp-action="ChangePassword" asp-controller="Settings" method="post" class="settings-form">
+                    @Html.AntiForgeryToken()
+
+                    <div class="form-row">
+                        <label asp-for="@passwordVm.CurrentPassword" class="form-label">Current Password</label>
+                        <input name="CurrentPassword" type="password" class="form-control" />
+                    </div>
+
+                    <div class="form-row">
+                        <label asp-for="@passwordVm.NewPassword" class="form-label">New Password</label>
+                        <input name="NewPassword" type="password" class="form-control" />
+                    </div>
+
+                    <div class="form-row">
+                        <label asp-for="@passwordVm.ConfirmPassword" class="form-label">Confirm New Password</label>
+                        <input name="ConfirmPassword" type="password" class="form-control" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update password</button>
+                </form>
+            </div>
+
+            <!-- Avatar panel -->
+            <div class="settings-panel" id="panel-avatar">
+                <h2 class="settings-panel-title">Profile Photo</h2>
+                <p class="settings-panel-sub">JPG, PNG, GIF or WebP — max 2 MB.</p>
+
+                @if (TempData["AvatarError"] != null)
+                {
+                    <div class="alert-banner alert-banner-error">
+                        <i class="fas fa-exclamation-circle"></i> @TempData["AvatarError"]
+                    </div>
+                }
+
+                <div class="avatar-preview-wrap">
+                    @if (!string.IsNullOrEmpty(Model.CurrentAvatarUrl))
+                    {
+                        <img src="@Model.CurrentAvatarUrl" alt="Current avatar" class="avatar-preview" id="avatarPreview" />
+                    }
+                    else
+                    {
+                        <div class="avatar-preview avatar-initials" id="avatarPreview">
+                            @(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "?")
+                        </div>
+                    }
+                </div>
+
+                <form asp-action="UploadAvatar" asp-controller="Settings" method="post"
+                      enctype="multipart/form-data" class="settings-form">
+                    @Html.AntiForgeryToken()
+                    <div class="form-row">
+                        <label class="form-label">Choose image</label>
+                        <input type="file" name="avatar" accept="image/*" class="form-control"
+                               id="avatarInput" onchange="previewAvatar(this)" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload photo</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Tab switching
+    document.querySelectorAll('.settings-nav-link').forEach(link => {
+        link.addEventListener('click', e => {
+            e.preventDefault();
+            const tab = link.dataset.tab;
+            document.querySelectorAll('.settings-nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+            link.classList.add('active');
+            document.getElementById('panel-' + tab).classList.add('active');
+        });
+    });
+
+    // Avatar live preview
+    function previewAvatar(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const el = document.getElementById('avatarPreview');
+                if (el.tagName === 'IMG') {
+                    el.src = e.target.result;
+                } else {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'avatar-preview';
+                    img.id = 'avatarPreview';
+                    el.replaceWith(img);
+                }
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Auto-open password tab if there's a password message
+    @if (TempData["PasswordError"] != null || TempData["PasswordSuccess"] != null)
+    {
+        <text>
+        document.querySelector('[data-tab="password"]').click();
+        </text>
+    }
+    @if (TempData["AvatarError"] != null)
+    {
+        <text>
+        document.querySelector('[data-tab="avatar"]').click();
+        </text>
+    }
+</script>
+}

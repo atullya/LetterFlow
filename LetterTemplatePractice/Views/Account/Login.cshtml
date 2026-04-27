@@ -1,0 +1,81 @@
+@model LetterTemplatePractice.Models.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Sign In";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In - LetterFlow Stories</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body { background: var(--bg-page); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .auth-card { width: 100%; max-width: 420px; }
+        .auth-logo { width: 52px; height: 52px; background: var(--primary); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; margin: 0 auto 16px; }
+    </style>
+</head>
+<body>
+<div class="auth-card">
+    <div class="text-center mb-4">
+        <div class="auth-logo"><i class="fas fa-feather-pointed"></i></div>
+        <h4 style="font-weight:800;letter-spacing:-.4px">LetterFlow Stories</h4>
+        <p style="color:var(--text-muted);font-size:.875rem">Sign in to read, write, and publish.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body" style="padding:28px">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+                </div>
+            }
+
+            <form asp-action="Login" method="post">
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Username" class="form-label">Username</label>
+                    <input asp-for="Username" class="form-control" placeholder="Enter your username" autocomplete="username" />
+                    <span asp-validation-for="Username" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <input asp-for="Password" class="form-control" placeholder="Enter your password" autocomplete="current-password" />
+                    <span asp-validation-for="Password" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-4 d-flex align-items-center justify-content-between">
+                    <div class="form-check">
+                        <input asp-for="RememberMe" class="form-check-input" id="rememberMe" />
+                        <label class="form-check-label" for="rememberMe" style="font-size:.875rem">Remember me</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-right-to-bracket"></i>
+                    <span>Sign In</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <p class="text-center mt-3" style="font-size:.875rem;color:var(--text-muted)">
+        Don't have an account?
+        <a asp-action="Register" style="color:var(--primary);font-weight:600">Create one</a>
+    </p>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - LetterFlow Stories</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23242424'/><text y='.9em' font-size='72' x='12' fill='white'>✒</text></svg>" />
+    <script type="importmap"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/LetterTemplatePractice.styles.css" asp-append-version="true" />
+</head>
+@{
+    string? _avatarUrl = null;
+    string _displayName = User.Identity?.Name ?? "?";
+    string _emailRaw = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+    string _emailMasked = _emailRaw;
+
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var _authSvc = Context.RequestServices.GetRequiredService<LetterTemplatePractice.Auth.IAuthService>();
+        var _uidStr  = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (_uidStr != null && int.TryParse(_uidStr, out var _uid))
+        {
+            var _cu = await _authSvc.GetUserByIdAsync(_uid);
+            _avatarUrl   = _cu?.AvatarUrl;
+            _displayName = _cu?.DisplayName ?? _cu?.Username ?? _displayName;
+        }
+        if (_emailRaw.Contains('@'))
+        {
+            int _at = _emailRaw.IndexOf('@');
+            _emailMasked = _emailRaw[0] + new string('•', Math.Min(6, _at - 1)) + _emailRaw[_at..];
+        }
+    }
+}
+<body class="@(ViewData["BodyClass"] ?? string.Empty)">
+<div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
+<div class="app-shell">
+
+    <!-- Sidebar — hidden by default, toggled by hamburger -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-mark">
+                <i class="fas fa-feather-pointed"></i>
+            </div>
+            <span class="sidebar-brand-text">LetterFlow Stories</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")"
+               asp-controller="Home" asp-action="Index">
+                <i class="fas fa-house"></i>
+                <span>Home</span>
+            </a>
+            <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Blog" && ViewContext.RouteData.Values["action"]?.ToString() == "Explore" ? "active" : "")"
+               asp-controller="Blog" asp-action="Explore">
+                <i class="fas fa-compass"></i>
+                <span>Explore</span>
+            </a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Blog" && ViewContext.RouteData.Values["action"]?.ToString() == "Create" ? "active" : "")"
+                   asp-controller="Blog" asp-action="Create">
+                    <i class="fas fa-pen"></i>
+                    <span>Write</span>
+                </a>
+                <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Blog" && ViewContext.RouteData.Values["action"]?.ToString() == "Mine" ? "active" : "")"
+                   asp-controller="Blog" asp-action="Mine">
+                    <i class="fas fa-book-open"></i>
+                    <span>My Stories</span>
+                </a>
+            }
+            @* <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Privacy" ? "active" : "")"
+               asp-controller="Home" asp-action="Privacy">
+                <i class="fas fa-shield-heart"></i>
+                <span>Privacy</span>
+            </a> *@
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+            }
+        </nav>
+    </aside>
+
+    <div class="shell-backdrop" id="shellBackdrop"></div>
+
+    <div class="main-content" id="mainContent">
+        <header class="topbar">
+            <div class="topbar-intro">
+                <!-- Hamburger — always visible, toggles sidebar -->
+                <button class="topbar-hamburger" id="sidebarToggle" type="button" aria-label="Toggle navigation">
+                    <span></span><span></span><span></span>
+                </button>
+                <a class="topbar-home-link" asp-controller="Home" asp-action="Index">
+                    <span class="topbar-wordmark">LetterFlow Stories</span>
+                </a>
+            </div>
+
+            <!-- Search bar -->
+            <form class="topbar-search" asp-controller="Blog" asp-action="Explore" method="get">
+                <i class="fas fa-search topbar-search-icon"></i>
+                <input type="search" name="q" class="topbar-search-input"
+                       placeholder="Search" autocomplete="off"
+                       value="@(Context.Request.Query["q"].ToString())" />
+            </form>
+
+            <div class="topbar-actions">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a asp-controller="Blog" asp-action="Create" class="topbar-write-btn">
+                        <i class="fas fa-pen-to-square"></i>
+                        <span>Write</span>
+                    </a>
+                    <button class="topbar-icon-btn" title="Notifications" aria-label="Notifications" type="button">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <div class="topbar-user-menu" id="userMenuRoot">
+                        <button class="topbar-avatar-btn" id="userMenuToggle" type="button"
+                                aria-haspopup="true" aria-expanded="false">
+                            @if (!string.IsNullOrEmpty(_avatarUrl))
+                            {
+                                <img src="@_avatarUrl" alt="@_displayName" class="topbar-avatar-img" />
+                            }
+                            else
+                            {
+                                <span class="topbar-avatar-initials">@(_displayName.Substring(0, 1).ToUpper())</span>
+                            }
+                        </button>
+                        <div class="user-dropdown" id="userDropdown" role="menu">
+                            <div class="user-dropdown-header">
+                                <div class="user-dropdown-avatar">
+                                    @if (!string.IsNullOrEmpty(_avatarUrl))
+                                    {
+                                        <img src="@_avatarUrl" alt="@_displayName" />
+                                    }
+                                    else
+                                    {
+                                        <span>@(_displayName.Substring(0, 1).ToUpper())</span>
+                                    }
+                                </div>
+                                <div class="user-dropdown-info">
+                                    <span class="user-dropdown-name">@_displayName</span>
+                                    <a asp-controller="Blog" asp-action="Mine" class="user-dropdown-profile-link">View profile</a>
+                                </div>
+                            </div>
+                            <div class="user-dropdown-divider"></div>
+                            <a asp-controller="Settings" asp-action="Index" class="user-dropdown-item" role="menuitem">
+                                <i class="fas fa-gear"></i> Settings
+                            </a>
+                            <a href="#" class="user-dropdown-item" role="menuitem">
+                                <i class="fas fa-circle-question"></i> Help
+                            </a>
+                            <div class="user-dropdown-divider"></div>
+                            <div class="user-dropdown-footer">
+                                <form asp-controller="Account" asp-action="Logout" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="user-dropdown-logout">Logout</button>
+                                </form>
+                                <span class="user-dropdown-email">@_emailMasked</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-secondary btn-sm">Sign in</a>
+                    <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-sm">Get started</a>
+                }
+            </div>
+        </header>
+
+        <div class="page-body">
+            @RenderBody()
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

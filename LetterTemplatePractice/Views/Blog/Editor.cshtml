@@ -1,0 +1,310 @@
+@model LetterTemplatePractice.Models.ViewModels.BlogComposerViewModel
+@{
+    ViewData["Title"]    = Model.Id.HasValue ? "Edit Story" : "Write Story";
+    ViewData["BodyClass"] = "editor-page";
+    var isEditing = Model.Id.HasValue;
+}
+
+<div class="editor-shell-wrap">
+
+    
+    <div class="editor-topbar">
+        <a asp-action="Mine" class="editor-back-link">
+            <i class="fas fa-arrow-left"></i>
+            <span>My Stories</span>
+        </a>
+        <span class="editor-topbar-title">@(isEditing ? "Editing story" : "New story")</span>
+        <div class="editor-topbar-actions">
+            <button type="submit" form="editorForm" name="SubmitAction" value="draft" class="btn btn-secondary btn-sm">
+                <i class="fas fa-floppy-disk"></i> Save Draft
+            </button>
+            <button type="submit" form="editorForm" name="SubmitAction" value="publish" class="btn btn-primary btn-sm">
+                <i class="fas fa-rocket"></i>
+                @(Model.IsPublished ? "Update" : "Publish")
+            </button>
+        </div>
+    </div>
+
+    <form id="editorForm" asp-action="@(isEditing ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="editor-canvas">
+
+            
+            <div asp-validation-summary="ModelOnly" class="editor-validation"></div>
+
+            
+            <div class="editor-field-title">
+                <input asp-for="Title"
+                       class="editor-input-title"
+                       placeholder="Title"
+                       autocomplete="off" />
+                <span asp-validation-for="Title" class="editor-field-error"></span>
+            </div>
+
+            
+            <div class="editor-field-subtitle">
+                <input asp-for="Subtitle"
+                       class="editor-input-subtitle"
+                       placeholder="Add a subtitle…"
+                       autocomplete="off" />
+            </div>
+
+            
+            <div class="editor-meta-row">
+                <div class="editor-meta-field">
+                    <label class="editor-meta-label">Topic</label>
+                    <input asp-for="Topic" class="editor-meta-input" placeholder="e.g. Design, Engineering" />
+                </div>
+                <div class="editor-meta-field">
+                    <label class="editor-meta-label">Cover Image URL</label>
+                    <input asp-for="CoverImageUrl" class="editor-meta-input" placeholder="https://…" />
+                    <span asp-validation-for="CoverImageUrl" class="editor-field-error"></span>
+                </div>
+                <div class="editor-meta-field editor-meta-field--wide">
+                    <label class="editor-meta-label">Excerpt <span class="editor-meta-hint">— shown in feed cards</span></label>
+                    <input asp-for="Excerpt" class="editor-meta-input" placeholder="A short summary for previews…" />
+                </div>
+                @if (User.IsInRole(UserRoles.Admin))
+                {
+                    <div class="editor-meta-field editor-meta-field--check">
+                        <label class="editor-check-label">
+                            <input asp-for="IsFeatured" type="checkbox" class="editor-check-input" />
+                            <span>Feature on home page</span>
+                        </label>
+                    </div>
+                }
+            </div>
+
+            
+            <div class="editor-divider"></div>
+
+            
+            <div class="editor-content-field">
+                <textarea asp-for="ContentHtml" id="storyEditor"></textarea>
+                <span asp-validation-for="ContentHtml" class="editor-field-error"></span>
+            </div>
+
+        </div>
+    </form>
+
+</div>
+
+@section Scripts {
+<style>
+/* ── Editor page overrides ──────────────────────────────────── */
+.editor-page .page-body { padding: 0; }
+
+/* Wrap */
+.editor-shell-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - var(--topbar-h));
+}
+
+/* Top action bar */
+.editor-topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 40px;
+    height: 52px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+    position: sticky;
+    top: var(--topbar-h);
+    z-index: 100;
+}
+
+.editor-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 160ms ease;
+    flex-shrink: 0;
+}
+
+.editor-back-link:hover { color: var(--text); text-decoration: none; }
+
+.editor-topbar-title {
+    font-size: 0.82rem;
+    color: var(--muted);
+    flex: 1;
+    text-align: center;
+}
+
+.editor-topbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Canvas */
+.editor-canvas {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 52px 24px 80px;
+    width: 100%;
+}
+
+/* Validation */
+.editor-validation {
+    margin-bottom: 20px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: #fff5f5;
+    border: 1px solid #f0c5c1;
+    color: #c0392b;
+    font-size: 0.88rem;
+}
+
+.editor-validation:empty { display: none; }
+
+/* Title input */
+.editor-field-title { margin-bottom: 12px; }
+
+.editor-input-title {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(2rem, 1.6rem + 1.2vw, 2.8rem);
+    font-weight: 700;
+    line-height: 1.15;
+    color: #3f3f3f;
+    background: transparent;
+    padding: 0;
+    caret-color: #3f3f3f;
+}
+
+.editor-input-title::placeholder { color: #3f3f3f; }
+
+/* Subtitle input */
+.editor-field-subtitle { margin-bottom: 28px; }
+
+.editor-input-subtitle {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 1.15rem;
+    line-height: 1.55;
+    color: #3c3c3c;
+    background: transparent;
+    padding: 0;
+    font-family: inherit;
+    caret-color: #3c3c3c;
+}
+
+.editor-input-subtitle::placeholder { color: ##3c3c3c; }
+
+/* Meta row */
+.editor-meta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+    margin-bottom: 28px;
+}
+
+.editor-meta-field { display: flex; flex-direction: column; gap: 5px; }
+.editor-meta-field--wide { grid-column: 1 / -1; }
+
+.editor-meta-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+}
+
+.editor-meta-hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.editor-meta-input {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-family: inherit;
+    transition: border-color 160ms ease, background 160ms ease;
+}
+
+.editor-meta-input:focus {
+    outline: none;
+    border-color: var(--text);
+    background: #fff;
+}
+
+.editor-meta-input::placeholder { color: #bbb; }
+
+/* Featured checkbox */
+.editor-meta-field--check { align-self: end; padding-bottom: 6px; }
+
+.editor-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+}
+
+.editor-check-input {
+    width: 16px; height: 16px;
+    accent-color: var(--text);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Divider */
+.editor-divider {
+    height: 1px;
+    background: var(--line);
+    margin-bottom: 28px;
+}
+
+/* Field errors */
+.editor-field-error {
+    font-size: 0.78rem;
+    color: #c0392b;
+    margin-top: 3px;
+}
+
+/* TinyMCE container */
+.editor-content-field .tox-tinymce {
+    border-radius: var(--radius) !important;
+    border-color: var(--line) !important;
+}
+
+/* Responsive */
+@@media (max-width: 768px) {
+    .editor-topbar { padding: 0 16px; }
+    .editor-topbar-title { display: none; }
+    .editor-canvas { padding: 32px 16px 60px; }
+    .editor-meta-row { grid-template-columns: 1fr; }
+    .editor-meta-field--wide { grid-column: 1; }
+}
+</style>
+
+<script src="https://cdn.tiny.cloud/1/81o0jisqpcft2bdbsj44ru6xu3vaw5nab39x3z4hl5h1lrrn/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    tinymce.init({
+        selector: "#storyEditor",
+        height: 560,
+        menubar: false,
+        plugins: ["advlist","autolink","lists","link","image","table","code","fullscreen","help","wordcount","searchreplace"],
+        toolbar: "undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist blockquote | link image table | code fullscreen",
+        skin: "oxide",
+        content_style: "body { font-family: Georgia, 'Times New Roman', serif; font-size: 19px; line-height: 1.8; padding: 24px 32px; max-width: 100%; color: #242424; }",
+        placeholder: "Tell your story…",
+        toolbar_location: "top",
+        toolbar_sticky: true,
+        toolbar_sticky_offset: 104
+    });
+</script>
+}

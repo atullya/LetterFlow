@@ -1,0 +1,85 @@
+@model LetterTemplatePractice.Models.ViewModels.HomeIndexViewModel
+@{
+    ViewData["Title"] = "Home";
+    var activeTab = Context.Request.Query["tab"].ToString();
+    if (string.IsNullOrEmpty(activeTab)) activeTab = "foryou";
+}
+
+<div class="feed-layout">
+    <main class="feed-main">
+
+        <!-- For you / Featured tabs -->
+        <div class="feed-tabs">
+            <a href="?tab=foryou"    class="feed-tab @(activeTab == "foryou"    ? "active" : "")">For you</a>
+            <a href="?tab=featured"  class="feed-tab @(activeTab == "featured"  ? "active" : "")">Featured</a>
+        </div>
+
+        <section class="story-list">
+            @{
+                var posts = activeTab == "featured"
+                    ? Model.FeaturedPosts
+                    : Model.LatestPosts;
+            }
+            @foreach (var post in posts)
+            {
+                await Html.RenderPartialAsync("_StoryCard", post);
+            }
+        </section>
+    </main>
+
+    <aside class="feed-rail">
+        @if (Model.PopularPosts.Any())
+        {
+            <section class="rail-section">
+                <h2>Staff Picks</h2>
+                <div class="stack-sm">
+                    @foreach (var post in Model.PopularPosts)
+                    {
+                        <div class="staff-pick">
+                            <div class="staff-pick-author">
+                                <div class="sc-avatar sc-avatar-sm">
+                                    @if (!string.IsNullOrEmpty(post.Author?.AvatarUrl))
+                                    {
+                                        <img src="@post.Author.AvatarUrl" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <span>@((post.Author?.DisplayName ?? post.Author?.Username ?? "?").Substring(0,1).ToUpper())</span>
+                                    }
+                                </div>
+                                <span>@(post.Author?.DisplayName ?? post.Author?.Username)</span>
+                            </div>
+                            <a asp-controller="Blog" asp-action="Details" asp-route-slug="@post.Slug" class="compact-story-link">
+                                <div class="compact-story-title">@post.Title</div>
+                            </a>
+                            <div class="compact-story-meta">
+                                @(post.PublishedAt?.ToString("MMM d") ?? post.UpdatedAt.ToString("MMM d"))
+                            </div>
+                        </div>
+                    }
+                </div>
+                <a asp-controller="Blog" asp-action="Explore" class="rail-see-all">See the full list</a>
+            </section>
+        }
+
+        @if (Model.Topics.Any())
+        {
+            <section class="rail-section">
+                <h2>Recommended topics</h2>
+                <div class="topic-pills">
+                    @foreach (var topic in Model.Topics)
+                    {
+                        <a asp-controller="Blog" asp-action="Explore" asp-route-topic="@topic" class="topic-pill">@topic</a>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="rail-section rail-stats">
+            <h2>Publication</h2>
+            <div class="rail-stat"><strong>@Model.PublishedPostCount</strong><span>published stories</span></div>
+            <div class="rail-stat"><strong>@Model.WriterCount</strong><span>writers</span></div>
+            <div class="rail-stat"><strong>@Model.CommentCount</strong><span>reader comments</span></div>
+        </section>
+    </aside>
+</div>

@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.4.11626.88
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LetterTemplatePractice", "LetterTemplatePractice.csproj", "{630CC51C-BB14-61FB-DE5D-2D707FDD2EBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logging", "..\Logging\Logging.csproj", "{34762516-CF0A-4A88-9FA1-5E3DF7449337}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{630CC51C-BB14-61FB-DE5D-2D707FDD2EBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{630CC51C-BB14-61FB-DE5D-2D707FDD2EBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{630CC51C-BB14-61FB-DE5D-2D707FDD2EBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{630CC51C-BB14-61FB-DE5D-2D707FDD2EBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34762516-CF0A-4A88-9FA1-5E3DF7449337}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34762516-CF0A-4A88-9FA1-5E3DF7449337}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34762516-CF0A-4A88-9FA1-5E3DF7449337}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34762516-CF0A-4A88-9FA1-5E3DF7449337}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {33E86410-4F99-4984-AD94-91C84CE039B0}
+	EndGlobalSection
+EndGlobal

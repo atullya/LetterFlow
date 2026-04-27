@@ -1,0 +1,84 @@
+@model IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
+@{
+    ViewData["Title"] = "Explore";
+    var topic  = ViewBag.Topic as string;
+    var search = ViewBag.Search as string;
+    var topics = ViewBag.Topics as IReadOnlyList<string> ?? [];
+}
+
+<div class="feed-layout">
+    <main class="feed-main">
+        <section class="feed-filter-bar">
+            <form method="get" asp-action="Explore" class="feed-filter-form">
+                <input type="text" name="search" class="form-control" value="@search" placeholder="Search stories…" />
+                <select name="topic" class="form-select">
+                    <option value="">All topics</option>
+                    @foreach (var t in topics)
+                    {
+                        if (string.Equals(topic, t, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@t" selected>@t</option>
+                        }
+                        else
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    }
+                </select>
+                <button type="submit" class="btn btn-primary">Apply</button>
+                <a asp-action="Explore" class="btn btn-secondary">Reset</a>
+            </form>
+        </section>
+
+        <section class="story-list">
+            @if (!Model.Any())
+            {
+                <div class="empty-state">
+                    <i class="fas fa-book-open-reader"></i>
+                    <h5>No stories matched</h5>
+                    <p>Try a different topic or a broader search term.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var post in Model)
+                {
+                    await Html.RenderPartialAsync("_StoryCard", post);
+                }
+            }
+        </section>
+    </main>
+
+    <aside class="feed-rail">
+        @if (topics.Any())
+        {
+            <section class="rail-section">
+                <h2>Browse by topic</h2>
+                <div class="topic-pills">
+                    @foreach (var t in topics)
+                    {
+                        <a asp-action="Explore" asp-route-topic="@t" class="topic-pill @(string.Equals(topic, t, StringComparison.OrdinalIgnoreCase) ? "topic-pill-active" : "")">@t</a>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (Model.Any())
+        {
+            <section class="rail-section">
+                <h2>In this list</h2>
+                <div class="stack-sm">
+                    @foreach (var post in Model.Take(5))
+                    {
+                        <a asp-action="Details" asp-route-slug="@post.Slug" class="compact-story-link">
+                            <div class="compact-story-title">@post.Title</div>
+                            <div class="compact-story-meta">
+                                @(post.Author?.DisplayName ?? post.Author?.Username) · @post.ReadTimeMinutes min read
+                            </div>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </aside>
+</div>

@@ -1,0 +1,120 @@
+@model IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
+@{
+    ViewData["Title"] = "Stories";
+    var drafts    = Model.Where(p => !p.IsPublished).ToList();
+    var published = Model.Where(p => p.IsPublished).ToList();
+    var tab       = Context.Request.Query["tab"].ToString();
+    if (string.IsNullOrEmpty(tab)) tab = "drafts";
+}
+
+<div class="stories-page">
+    <div class="stories-header">
+        <h1 class="stories-title">Stories</h1>
+        <a asp-action="Create" class="btn-stories-new">New story</a>
+    </div>
+
+    <!-- Tabs -->
+    <div class="stories-tabs">
+        <a href="?tab=drafts"    class="stories-tab @(tab == "drafts"    ? "active" : "")">Drafts <span class="stories-tab-count">@drafts.Count</span></a>
+        <a href="?tab=published" class="stories-tab @(tab == "published" ? "active" : "")">Published <span class="stories-tab-count">@published.Count</span></a>
+    </div>
+
+    <!-- Table header -->
+    <div class="stories-table-head">
+        <span>Latest</span>
+        <span class="stories-col-status">Status</span>
+    </div>
+
+    @{
+        var activeList = tab == "published" ? published : drafts;
+    }
+
+    @if (!activeList.Any())
+    {
+        <div class="stories-empty">
+            <p>No @tab stories yet. <a asp-action="Create">Write one →</a></p>
+        </div>
+    }
+    else
+    {
+        <ul class="stories-list">
+            @foreach (var post in activeList)
+            {
+                var postUrl = Url.Action("Details", "Blog", new { slug = post.Slug }, Context.Request.Scheme)!;
+                <li class="stories-row">
+                    <!-- Thumb -->
+                    @if (!string.IsNullOrEmpty(post.CoverImageUrl))
+                    {
+                        <a asp-action="Details" asp-route-slug="@post.Slug" class="stories-thumb-link">
+                            <img src="@post.CoverImageUrl" alt="" class="stories-thumb" />
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="stories-thumb-placeholder"></div>
+                    }
+
+                    <!-- Info -->
+                    <div class="stories-row-info">
+                        <a asp-action="Details" asp-route-slug="@post.Slug" class="stories-row-title">@post.Title</a>
+                        <span class="stories-row-meta">
+                            @post.ReadTimeMinutes min read
+                            @if (post.UpdatedAt != default)
+                            {
+                                <span>· Updated @post.UpdatedAt.ToString("MMM d, yyyy")</span>
+                            }
+                        </span>
+                    </div>
+
+                    <!-- Status -->
+                    <span class="stories-col-status stories-status-@(post.IsPublished ? "published" : "draft")">
+                        @(post.IsPublished ? "Published" : "Draft")
+                    </span>
+
+                    <!-- Three-dot menu -->
+                    <div class="story-menu-wrap">
+                        <button class="story-menu-btn" type="button" aria-label="Story options">
+                            <span></span><span></span><span></span>
+                        </button>
+                        <div class="story-menu-dropdown" role="menu">
+                            <button class="story-menu-item story-menu-copy"
+                                    type="button"
+                                    data-url="@postUrl"
+                                    onclick="copyStoryLink(this)">
+                                <i class="fas fa-link"></i> Copy link
+                            </button>
+                            <div class="story-menu-divider"></div>
+                            <a asp-action="Edit" asp-route-id="@post.Id" class="story-menu-item" role="menuitem">
+                                Edit story
+                            </a>
+                            <a asp-action="Details" asp-route-slug="@post.Slug" class="story-menu-item" role="menuitem">
+                                View story
+                            </a>
+                            <div class="story-menu-divider"></div>
+                            <form asp-action="Delete" asp-route-id="@post.Id" method="post"
+                                  onsubmit="return confirm('Delete this story? This cannot be undone.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="story-menu-item story-menu-delete" role="menuitem">
+                                    Delete story
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@section Scripts {
+<script>
+function copyStoryLink(btn) {
+    const url = btn.dataset.url;
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+}
+</script>
+}

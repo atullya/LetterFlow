@@ -1,0 +1,59 @@
+## ── .NET / ASP.NET Core ──────────────────────────────────────────────────────
+
+# Build output
+bin/
+obj/
+out/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/packages/repositories.config
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Publish output
+publish/
+**/publish/
+
+# Runtime / logs
+Logs/
+*.log
+*.trn
+
+# Secrets — NEVER commit these
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
+# dotnet user secrets
+secrets.json
+
+## ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## ── IDEs ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+## ── Node (if any frontend tooling) ──────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+## ── Uploads (user content — don't commit) ───────────────────────────────────
+LetterTemplatePractice/wwwroot/uploads/
+
+## ── dotnet sentinel / telemetry files ───────────────────────────────────────
+.dotnet/

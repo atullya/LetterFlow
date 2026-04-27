@@ -1,0 +1,208 @@
+@model LetterTemplatePractice.Models.ViewModels.BlogDetailsViewModel
+@{
+    ViewData["Title"] = Model.Post.Title;
+    ViewData["BodyClass"] = "reader-mode";
+    var absoluteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/stories/{Model.Post.Slug}";
+}
+
+<article class="article-shell">
+    <header class="article-header">
+        <div class="article-kicker">@Model.Post.Topic</div>
+        <h1 class="article-title">@Model.Post.Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Post.Subtitle))
+        {
+            <p class="article-subtitle">@Model.Post.Subtitle</p>
+        }
+        <div class="article-meta-bar">
+            <div class="article-author-lockup">
+                <div class="article-author-avatar">@(Model.Post.Author?.Username?.Substring(0, 1).ToUpper() ?? "?")</div>
+                <div>
+                    <div class="article-author-name">@Model.Post.Author?.Username</div>
+                    <div class="article-meta">
+                        <span>@(Model.Post.PublishedAt?.ToString("MMM dd, yyyy") ?? Model.Post.UpdatedAt.ToString("MMM dd, yyyy"))</span>
+                        <span>@Model.Post.ReadTimeMinutes min read</span>
+                        <span>@Model.Post.ViewCount views</span>
+                    </div>
+                </div>
+            </div>
+            @if (Model.IsOwner)
+            {
+                <div class="article-owner-actions">
+                    <a asp-action="Edit" asp-route-id="@Model.Post.Id" class="btn btn-secondary btn-sm">Edit story</a>
+                </div>
+            }
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Post.CoverImageUrl))
+    {
+        <img class="article-cover" src="@Model.Post.CoverImageUrl" alt="@Model.Post.Title" />
+    }
+
+    <section class="article-toolbar">
+        <div class="article-action-row">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form id="likeForm" asp-action="ToggleLike" asp-route-id="@Model.Post.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" id="likeButton" class="article-action-button @(Model.IsLikedByCurrentUser ? "liked" : string.Empty)">
+                        <i class="fas fa-heart"></i>
+                        <span><span id="likeCount">@Model.Post.Likes.Count</span> clap@(Model.Post.Likes.Count == 1 ? "" : "s")</span>
+                    </button>
+                </form>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="article-action-button">
+                    <i class="fas fa-heart"></i>
+                    <span>@Model.Post.Likes.Count clap@(Model.Post.Likes.Count == 1 ? "" : "s")</span>
+                </a>
+            }
+            <a href="#discussion" class="article-action-button">
+                <i class="fas fa-comment"></i>
+                <span>@Model.Comments.Count comment@(Model.Comments.Count == 1 ? "" : "s")</span>
+            </a>
+            <button type="button" id="copyShareButton" class="article-action-button" data-url="@absoluteUrl">
+                <i class="fas fa-link"></i>
+                <span>Copy link</span>
+            </button>
+            <a class="article-action-button" href="https://twitter.com/intent/tweet?url=@Uri.EscapeDataString(absoluteUrl)&text=@Uri.EscapeDataString(Model.Post.Title)" target="_blank" rel="noreferrer">
+                <i class="fab fa-x-twitter"></i>
+                <span>Share</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="article-body" id="articleContent">
+        @Html.Raw(Model.Post.ContentHtml)
+    </section>
+
+    <section class="article-toolbar article-toolbar-bottom">
+        <div class="article-action-summary">
+            <span>@Model.Post.Likes.Count clap@(Model.Post.Likes.Count == 1 ? "" : "s")</span>
+            <span>@Model.Comments.Count comment@(Model.Comments.Count == 1 ? "" : "s")</span>
+        </div>
+    </section>
+
+    <section class="author-card">
+        <div class="article-author-avatar article-author-avatar-lg">@(Model.Post.Author?.Username?.Substring(0, 1).ToUpper() ?? "?")</div>
+        <div class="author-card-copy">
+            <p class="author-card-label">Written by</p>
+            <h2>@Model.Post.Author?.Username</h2>
+            <p>@(string.IsNullOrWhiteSpace(Model.Post.Subtitle) ? "Publishing thoughtful stories for readers who want a slower, clearer page." : Model.Post.Subtitle)</p>
+        </div>
+    </section>
+
+    <section class="reader-secondary-block" id="discussion">
+        <div class="reader-section-heading">
+            <h2>Responses</h2>
+            <p>@Model.Comments.Count comment@(Model.Comments.Count == 1 ? "" : "s") on this story.</p>
+        </div>
+
+        @if (Model.CanComment)
+        {
+            <form asp-action="AddComment" asp-route-id="@Model.Post.Id" method="post" class="stack-sm reader-comment-form">
+                @Html.AntiForgeryToken()
+                <textarea name="content" rows="4" class="form-control" placeholder="Write a response"></textarea>
+                <div>
+                    <button type="submit" class="btn btn-primary btn-sm">Post comment</button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-circle-info"></i>
+                <div>Sign in to comment, clap, and join the discussion.</div>
+            </div>
+        }
+
+        <div class="stack-sm">
+            @if (!Model.Comments.Any())
+            {
+                <div class="empty-state empty-state-compact">
+                    <i class="fas fa-comment-dots"></i>
+                    <h5>No comments yet</h5>
+                    <p>Be the first reader to respond.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var comment in Model.Comments)
+                {
+                    <article class="comment-card">
+                        <div class="comment-card-meta">
+                            <strong>@comment.Author?.Username</strong>
+                            <span>@comment.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
+                        </div>
+                        <div class="comment-card-body">@comment.Content</div>
+                        @if ((User.Identity?.IsAuthenticated == true) &&
+                             (User.Identity?.Name == comment.Author?.Username || Model.IsOwner || User.IsInRole(UserRoles.Admin)))
+                        {
+                            <form asp-action="DeleteComment" asp-route-id="@comment.Id" method="post" style="margin-top:12px">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
+                        }
+                    </article>
+                }
+            }
+        </div>
+    </section>
+
+    @if (Model.RelatedPosts.Any())
+    {
+        <section class="reader-secondary-block">
+            <div class="reader-section-heading">
+                <h2>More from this publication</h2>
+            </div>
+            <div class="stack-sm">
+                @foreach (var related in Model.RelatedPosts)
+                {
+                    <a asp-action="Details" asp-route-slug="@related.Slug" class="compact-story-link">
+                        <div class="compact-story-title">@related.Title</div>
+                        <div class="compact-story-meta">@related.Author?.Username - @related.ReadTimeMinutes min read</div>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+</article>
+
+@section Scripts {
+    <script>
+        const likeForm = document.getElementById("likeForm");
+        const likeButton = document.getElementById("likeButton");
+        const likeCount = document.getElementById("likeCount");
+
+        if (likeForm && likeButton && likeCount) {
+            likeForm.addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                const response = await fetch(this.action, {
+                    method: "POST",
+                    headers: {
+                        "RequestVerificationToken": this.querySelector('input[name="__RequestVerificationToken"]').value
+                    }
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const result = await response.json();
+                likeCount.textContent = result.count;
+                likeButton.classList.toggle("liked", result.liked);
+            });
+        }
+
+        document.getElementById("copyShareButton")?.addEventListener("click", async function () {
+            const url = this.dataset.url;
+            await navigator.clipboard.writeText(url);
+            this.querySelector("span").textContent = "Copied";
+            setTimeout(() => {
+                this.querySelector("span").textContent = "Copy link";
+            }, 1800);
+        });
+    </script>
+}

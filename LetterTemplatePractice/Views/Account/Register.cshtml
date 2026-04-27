@@ -1,0 +1,78 @@
+@model LetterTemplatePractice.Models.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "Create Account";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Account - LetterFlow Stories</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body { background: var(--bg-page); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px 0; }
+        .auth-card { width: 100%; max-width: 440px; }
+        .auth-logo { width: 52px; height: 52px; background: var(--primary); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; margin: 0 auto 16px; }
+    </style>
+</head>
+<body>
+<div class="auth-card">
+    <div class="text-center mb-4">
+        <div class="auth-logo"><i class="fas fa-feather-pointed"></i></div>
+        <h4 style="font-weight:800;letter-spacing:-.4px">LetterFlow Stories</h4>
+        <p style="color:var(--text-muted);font-size:.875rem">Create an account to write and join the conversation.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body" style="padding:28px">
+            <form asp-action="Register" method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Username" class="form-label">Username</label>
+                    <input asp-for="Username" class="form-control" placeholder="Choose a username" autocomplete="username" />
+                    <span asp-validation-for="Username" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label">Email</label>
+                    <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="email" />
+                    <span asp-validation-for="Email" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <input asp-for="Password" class="form-control" placeholder="Min. 8 characters" autocomplete="new-password" />
+                    <span asp-validation-for="Password" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
+                    <input asp-for="ConfirmPassword" class="form-control" placeholder="Repeat password" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Create Account</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <p class="text-center mt-3" style="font-size:.875rem;color:var(--text-muted)">
+        Already have an account?
+        <a asp-action="Login" style="color:var(--primary);font-weight:600">Sign in</a>
+    </p>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

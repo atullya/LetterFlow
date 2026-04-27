@@ -1,0 +1,91 @@
+@model LetterTemplatePractice.Models.BlogPost
+@{
+    var post       = Model;
+    var authorName = post.Author?.DisplayName ?? post.Author?.Username ?? "Unknown";
+    var authorInit = authorName.Substring(0, 1).ToUpper();
+    var postDate   = (post.PublishedAt ?? post.UpdatedAt).ToString("MMM d");
+    var postUrl    = Url.Action("Details", "Blog", new { slug = post.Slug }, Context.Request.Scheme)!;
+}
+
+<article class="sc">
+
+    <!-- Tiny author row -->
+    <div class="sc-author-row">
+        <div class="sc-avatar">
+            @if (!string.IsNullOrEmpty(post.Author?.AvatarUrl))
+            {
+                <img src="@post.Author.AvatarUrl" alt="@authorName" />
+            }
+            else
+            {
+                <span>@authorInit</span>
+            }
+        </div>
+        <span class="sc-author-name">@authorName</span>
+    </div>
+
+    <!-- Title + optional thumb -->
+    <div class="sc-body">
+        <div class="sc-copy">
+            <a asp-controller="Blog" asp-action="Details" asp-route-slug="@post.Slug" class="sc-title-link">@post.Title</a>
+            @if (!string.IsNullOrWhiteSpace(post.Subtitle))
+            {
+                <p class="sc-subtitle">@post.Subtitle</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(post.Excerpt))
+            {
+                <p class="sc-excerpt">@post.Excerpt</p>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(post.CoverImageUrl))
+        {
+            <a asp-controller="Blog" asp-action="Details" asp-route-slug="@post.Slug" class="sc-thumb-link">
+                <img src="@post.CoverImageUrl" alt="@post.Title" class="sc-thumb" />
+            </a>
+        }
+    </div>
+
+    <!-- Footer: star · date · claps · comments · topic | bookmark ··· -->
+    <div class="sc-footer">
+        <div class="sc-meta">
+            <span class="sc-star">✦</span>
+            <span>@postDate</span>
+            <span class="sc-sep">·</span>
+            <span><i class="fas fa-hands-clapping sc-icon"></i> @post.Likes.Count</span>
+            <span class="sc-sep">·</span>
+            <span><i class="far fa-comment sc-icon"></i> @post.Comments.Count</span>
+            @if (!string.IsNullOrWhiteSpace(post.Topic))
+            {
+                <span class="sc-sep">·</span>
+                <span class="sc-topic-tag">@post.Topic</span>
+            }
+        </div>
+        <div class="sc-actions">
+            <button class="sc-action-btn" title="Save" type="button" aria-label="Save">
+                <i class="far fa-bookmark"></i>
+            </button>
+            <div class="sc-menu-wrap">
+                <button class="sc-action-btn sc-dots-btn" type="button" aria-label="More options">
+                    <i class="fas fa-ellipsis"></i>
+                </button>
+                <div class="sc-dropdown" role="menu">
+                    <button class="sc-drop-item sc-copy-link" type="button" data-url="@postUrl">
+                        <i class="fas fa-link"></i> Copy link
+                    </button>
+                    <div class="sc-drop-divider"></div>
+                    <a asp-controller="Blog" asp-action="Details" asp-route-slug="@post.Slug" class="sc-drop-item">
+                        <i class="far fa-eye"></i> Read story
+                    </a>
+                    <div class="sc-drop-divider"></div>
+                    <button class="sc-drop-item sc-drop-mute" type="button">
+                        <i class="fas fa-volume-xmark"></i> Mute author
+                    </button>
+                    <button class="sc-drop-item sc-drop-report" type="button">
+                        <i class="fas fa-flag"></i> Report story
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</article>
