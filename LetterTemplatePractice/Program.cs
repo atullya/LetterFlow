@@ -70,7 +70,41 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+
+    // If tables already exist but __EFMigrationsHistory is empty (partial previous deploy),
+    // mark all migrations as applied without running them, then apply any genuinely pending ones.
+    var applied = db.Database.GetAppliedMigrations().ToList();
+    var pending = db.Database.GetPendingMigrations().ToList();
+
+    if (applied.Count == 0 && pending.Count > 0)
+    {
+        // Check if Users table already exists — means DB was partially set up
+        var conn = db.Database.GetDbConnection();
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='Users'";
+        var exists = (long)(cmd.ExecuteScalar() ?? 0L) > 0;
+        conn.Close();
+
+        if (exists)
+        {
+            // Tables exist but history is empty — insert all migration IDs as already applied
+            var efVersion = typeof(DbContext).Assembly.GetName().Version?.ToString() ?? "10.0.0";
+            foreach (var migration in pending)
+            {
+                db.Database.ExecuteSql(
+                    $"INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ({migration}, {efVersion})");
+            }
+        }
+        else
+        {
+            db.Database.Migrate();
+        }
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
 }
 
 await DataSeeder.SeedAsync(app.Services);
