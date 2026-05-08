@@ -80,7 +80,11 @@ else
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "LetterFlow API v1"));
 }
 
-app.UseHttpsRedirection();
+// Render terminates TLS at the load balancer; skip HTTPS redirect inside the container
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseStaticFiles();
 app.UseRouting();
 app.UseRequestLogging();
