@@ -66,6 +66,13 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Auto-apply EF Core migrations on startup (safe to run on every deploy)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
 await DataSeeder.SeedAsync(app.Services);
 
 if (!app.Environment.IsDevelopment())
