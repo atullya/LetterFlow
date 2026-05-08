@@ -56,6 +56,10 @@ builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<BlogService>();
 
+// AI — Gemini (free tier)
+builder.Services.AddHttpClient("gemini");
+builder.Services.AddScoped<GeminiService>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "LetterFlow API", Version = "v1" }));

@@ -28,62 +28,121 @@
     <form id="editorForm" asp-action="@(isEditing ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post">
         @Html.AntiForgeryToken()
 
-        <div class="editor-canvas">
+        <div class="editor-layout">
 
-            
-            <div asp-validation-summary="ModelOnly" class="editor-validation"></div>
+        
+            <div class="editor-canvas">
 
-            
-            <div class="editor-field-title">
-                <input asp-for="Title"
-                       class="editor-input-title"
-                       placeholder="Title"
-                       autocomplete="off" />
-                <span asp-validation-for="Title" class="editor-field-error"></span>
-            </div>
+                <div asp-validation-summary="ModelOnly" class="editor-validation"></div>
 
-            
-            <div class="editor-field-subtitle">
-                <input asp-for="Subtitle"
-                       class="editor-input-subtitle"
-                       placeholder="Add a subtitle…"
-                       autocomplete="off" />
-            </div>
-
-            
-            <div class="editor-meta-row">
-                <div class="editor-meta-field">
-                    <label class="editor-meta-label">Topic</label>
-                    <input asp-for="Topic" class="editor-meta-input" placeholder="e.g. Design, Engineering" />
+                <div class="editor-field-title">
+                    <input asp-for="Title"
+                           class="editor-input-title"
+                           placeholder="Title"
+                           autocomplete="off" />
+                    <span asp-validation-for="Title" class="editor-field-error"></span>
                 </div>
-                <div class="editor-meta-field">
-                    <label class="editor-meta-label">Cover Image URL</label>
-                    <input asp-for="CoverImageUrl" class="editor-meta-input" placeholder="https://…" />
-                    <span asp-validation-for="CoverImageUrl" class="editor-field-error"></span>
+
+                <div class="editor-field-subtitle">
+                    <input asp-for="Subtitle"
+                           class="editor-input-subtitle"
+                           placeholder="Add a subtitle…"
+                           autocomplete="off" />
                 </div>
-                <div class="editor-meta-field editor-meta-field--wide">
-                    <label class="editor-meta-label">Excerpt <span class="editor-meta-hint">— shown in feed cards</span></label>
-                    <input asp-for="Excerpt" class="editor-meta-input" placeholder="A short summary for previews…" />
-                </div>
-                @if (User.IsInRole(UserRoles.Admin))
-                {
-                    <div class="editor-meta-field editor-meta-field--check">
-                        <label class="editor-check-label">
-                            <input asp-for="IsFeatured" type="checkbox" class="editor-check-input" />
-                            <span>Feature on home page</span>
-                        </label>
+
+                <div class="editor-meta-row">
+                    <div class="editor-meta-field">
+                        <label class="editor-meta-label">Topic</label>
+                        <input asp-for="Topic" id="Topic" class="editor-meta-input" placeholder="e.g. Design, Engineering" />
                     </div>
-                }
+                    <div class="editor-meta-field">
+                        <label class="editor-meta-label">Cover Image URL</label>
+                        <input asp-for="CoverImageUrl" class="editor-meta-input" placeholder="https://…" />
+                        <span asp-validation-for="CoverImageUrl" class="editor-field-error"></span>
+                    </div>
+                    <div class="editor-meta-field editor-meta-field--wide">
+                        <label class="editor-meta-label">Excerpt <span class="editor-meta-hint">— shown in feed cards</span></label>
+                        <input asp-for="Excerpt" id="Excerpt" class="editor-meta-input" placeholder="A short summary for previews…" />
+                    </div>
+                    @if (User.IsInRole(UserRoles.Admin))
+                    {
+                        <div class="editor-meta-field editor-meta-field--check">
+                            <label class="editor-check-label">
+                                <input asp-for="IsFeatured" type="checkbox" class="editor-check-input" />
+                                <span>Feature on home page</span>
+                            </label>
+                        </div>
+                    }
+                </div>
+
+                <div class="editor-divider"></div>
+
+                <div class="editor-content-field">
+                    <textarea asp-for="ContentHtml" id="storyEditor"></textarea>
+                    <span asp-validation-for="ContentHtml" class="editor-field-error"></span>
+                </div>
+
             </div>
 
-            
-            <div class="editor-divider"></div>
+    
+            <aside class="ai-sidebar">
+                <div class="ai-panel">
+                    <div class="ai-panel-header">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        AI Assistant
+                    </div>
+                    <div class="ai-actions">
+                        <button type="button" id="btnImprove" class="ai-btn">
+                            <i class="fas fa-pen-nib"></i> Improve selected
+                        </button>
+                        <button type="button" id="btnContinue" class="ai-btn">
+                            <i class="fas fa-forward"></i> Continue writing
+                        </button>
+                        <button type="button" id="btnSummarize" class="ai-btn">
+                            <i class="fas fa-align-left"></i> Auto-fill excerpt
+                        </button>
+                        <button type="button" id="btnSuggestTitle" class="ai-btn">
+                            <i class="fas fa-heading"></i> Suggest titles
+                        </button>
+                        <button type="button" id="btnSuggestTags" class="ai-btn">
+                            <i class="fas fa-tags"></i> Suggest tags
+                        </button>
+                        <button type="button" id="btnSuggestImages" class="ai-btn">
+                            <i class="fas fa-image"></i> Suggest cover image
+                        </button>
+                    </div>
 
-            
-            <div class="editor-content-field">
-                <textarea asp-for="ContentHtml" id="storyEditor"></textarea>
-                <span asp-validation-for="ContentHtml" class="editor-field-error"></span>
-            </div>
+                    <div class="ai-spinner" id="aiSpinner">
+                        <i class="fas fa-circle-notch ai-spin-icon"></i>
+                        Thinking…
+                    </div>
+
+                    <div class="ai-result" id="aiResult">
+                        <div id="aiResultText"></div>
+                        <div class="ai-result-actions">
+                            <button type="button" id="btnApplyImprove" class="ai-btn ai-btn-primary" style="display:none">
+                                <i class="fas fa-check"></i> Apply
+                            </button>
+                            <button type="button" id="btnApplyContinue" class="ai-btn ai-btn-primary" style="display:none">
+                                <i class="fas fa-plus"></i> Append
+                            </button>
+                            <button type="button" class="ai-btn" onclick="document.getElementById('aiResult').classList.remove('visible')">
+                                <i class="fas fa-times"></i> Dismiss
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ai-title-chips" id="aiTitleChips"></div>
+                    <div class="ai-tag-chips" id="aiTagChips"></div>
+
+                    <div class="ai-image-section" id="aiImageSection" style="display:none">
+                        <div class="ai-image-label" id="aiImageLabel"></div>
+                        <div class="ai-image-grid" id="aiImageGrid"></div>
+                    </div>
+
+                  
+                </div>
+            </aside>
 
         </div>
     </form>
@@ -92,200 +151,350 @@
 
 @section Scripts {
 <style>
-/* ── Editor page overrides ──────────────────────────────────── */
+/* ── Editor page ─────────────────────────────────────────────── */
 .editor-page .page-body { padding: 0; }
 
-/* Wrap */
 .editor-shell-wrap {
     display: flex;
     flex-direction: column;
     min-height: calc(100vh - var(--topbar-h));
 }
 
-/* Top action bar */
+/* Sticky topbar */
 .editor-topbar {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 0 40px;
+    padding: 0 32px;
     height: 52px;
     border-bottom: 1px solid var(--line);
     background: #fff;
     position: sticky;
     top: var(--topbar-h);
     z-index: 100;
+    flex-shrink: 0;
 }
 
 .editor-back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 0.85rem;
-    color: var(--muted);
-    text-decoration: none;
-    transition: color 160ms ease;
-    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    transition: color 160ms ease; flex-shrink: 0;
 }
-
 .editor-back-link:hover { color: var(--text); text-decoration: none; }
 
 .editor-topbar-title {
-    font-size: 0.82rem;
-    color: var(--muted);
+    font-size: 0.82rem; color: var(--muted);
+    flex: 1; text-align: center;
+}
+
+.editor-topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Two-column layout ───────────────────────────────────────── */
+.editor-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 0;
     flex: 1;
-    text-align: center;
+    align-items: start;
 }
 
-.editor-topbar-actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-/* Canvas */
+/* Writing canvas */
 .editor-canvas {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 52px 24px 80px;
-    width: 100%;
+    padding: 40px 48px 60px 64px;
+    border-right: 1px solid var(--line);
+    min-width: 0;
 }
 
-/* Validation */
+/* AI sidebar */
+.ai-sidebar {
+    padding: 24px 20px;
+    position: sticky;
+    top: calc(var(--topbar-h) + 52px);
+    max-height: calc(100vh - var(--topbar-h) - 52px);
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+.ai-sidebar::-webkit-scrollbar { display: none; }
+
+/* ── Canvas fields ───────────────────────────────────────────── */
 .editor-validation {
-    margin-bottom: 20px;
-    padding: 12px 14px;
+    margin-bottom: 20px; padding: 12px 14px;
     border-radius: var(--radius);
-    background: #fff5f5;
-    border: 1px solid #f0c5c1;
-    color: #c0392b;
-    font-size: 0.88rem;
+    background: #fff5f5; border: 1px solid #f0c5c1;
+    color: #c0392b; font-size: 0.88rem;
 }
-
 .editor-validation:empty { display: none; }
 
-/* Title input */
-.editor-field-title { margin-bottom: 12px; }
+.editor-field-title { margin-bottom: 10px; }
 
 .editor-input-title {
-    width: 100%;
-    border: none;
-    outline: none;
+    width: 100%; border: none; outline: none;
     font-family: 'Playfair Display', Georgia, serif;
-    font-size: clamp(2rem, 1.6rem + 1.2vw, 2.8rem);
-    font-weight: 700;
-    line-height: 1.15;
-    color: #3f3f3f;
-    background: transparent;
-    padding: 0;
-    caret-color: #3f3f3f;
+    font-size: clamp(1.9rem, 1.5rem + 1.2vw, 2.6rem);
+    font-weight: 700; line-height: 1.15;
+    color: #242424; background: transparent; padding: 0;
 }
+.editor-input-title::placeholder { color: #aaa; }
 
-.editor-input-title::placeholder { color: #3f3f3f; }
-
-/* Subtitle input */
-.editor-field-subtitle { margin-bottom: 28px; }
+.editor-field-subtitle { margin-bottom: 24px; }
 
 .editor-input-subtitle {
-    width: 100%;
-    border: none;
-    outline: none;
-    font-size: 1.15rem;
-    line-height: 1.55;
-    color: #3c3c3c;
-    background: transparent;
-    padding: 0;
+    width: 100%; border: none; outline: none;
+    font-size: 1.1rem; line-height: 1.55;
+    color: #555; background: transparent; padding: 0;
     font-family: inherit;
-    caret-color: #3c3c3c;
 }
+.editor-input-subtitle::placeholder { color: #aaa; }
 
-.editor-input-subtitle::placeholder { color: ##3c3c3c; }
-
-/* Meta row */
 .editor-meta-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px 20px;
-    margin-bottom: 28px;
+    gap: 12px 16px;
+    margin-bottom: 24px;
 }
-
-.editor-meta-field { display: flex; flex-direction: column; gap: 5px; }
+.editor-meta-field { display: flex; flex-direction: column; gap: 4px; }
 .editor-meta-field--wide { grid-column: 1 / -1; }
+.editor-meta-field--check { align-self: end; padding-bottom: 4px; }
 
 .editor-meta-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: var(--muted);
+    font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em; color: #555;
 }
-
 .editor-meta-hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
 
 .editor-meta-input {
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    font-size: 0.88rem;
-    font-family: inherit;
+    height: 38px; padding: 0 12px;
+    border: 1px solid #c8c8c8; border-radius: var(--radius);
+    background: #f5f5f5; color: #242424;
+    font-size: 0.88rem; font-family: inherit;
     transition: border-color 160ms ease, background 160ms ease;
 }
-
-.editor-meta-input:focus {
-    outline: none;
-    border-color: var(--text);
-    background: #fff;
-}
-
-.editor-meta-input::placeholder { color: #bbb; }
-
-/* Featured checkbox */
-.editor-meta-field--check { align-self: end; padding-bottom: 6px; }
+.editor-meta-input:focus { outline: none; border-color: #242424; background: #fff; }
+.editor-meta-input::placeholder { color: #999; }
 
 .editor-check-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.88rem;
-    color: var(--text);
-    cursor: pointer;
-    user-select: none;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.88rem; color: var(--text); cursor: pointer; user-select: none;
 }
+.editor-check-input { width: 16px; height: 16px; accent-color: var(--text); cursor: pointer; }
 
-.editor-check-input {
-    width: 16px; height: 16px;
-    accent-color: var(--text);
-    cursor: pointer;
-    flex-shrink: 0;
-}
+.editor-divider { height: 1px; background: var(--line); margin-bottom: 24px; }
+.editor-field-error { font-size: 0.78rem; color: #c0392b; margin-top: 3px; }
 
-/* Divider */
-.editor-divider {
-    height: 1px;
-    background: var(--line);
-    margin-bottom: 28px;
-}
-
-/* Field errors */
-.editor-field-error {
-    font-size: 0.78rem;
-    color: #c0392b;
-    margin-top: 3px;
-}
-
-/* TinyMCE container */
+/* TinyMCE */
 .editor-content-field .tox-tinymce {
     border-radius: var(--radius) !important;
     border-color: var(--line) !important;
 }
 
-/* Responsive */
+/* ── AI Panel ────────────────────────────────────────────────── */
+.ai-panel {
+    border: 1px solid #c8c8c8;
+    border-radius: 12px;
+    background: #f5f5f5;
+    overflow: hidden;
+}
+
+.ai-panel-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px;
+    background: #f2f2f2;
+    border-bottom: 1px solid #d8d8d8;
+    font-size: 0.75rem; font-weight: 700;
+    color: #242424; text-transform: uppercase; letter-spacing: .06em;
+}
+.ai-panel-header i { font-size: 0.9rem; color: #242424; }
+
+.ai-actions {
+    display: flex; flex-direction: column;
+    gap: 6px; padding: 12px;
+}
+
+.ai-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    width: 100%; height: 36px; padding: 0 12px;
+    border: 1px solid #d0d0d0; border-radius: 8px;
+    background: #fff; color: #242424;
+    font-size: 0.82rem; font-weight: 500; font-family: inherit;
+    cursor: pointer; text-align: left;
+    transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+    white-space: nowrap;
+}
+.ai-btn:hover { border-color: #242424; color: #242424; background: #f2f2f2; }
+.ai-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ai-btn i { font-size: 0.78rem; width: 14px; text-align: center; color: #555; flex-shrink: 0; }
+
+.ai-btn-primary {
+    background: #242424; border-color: #242424; color: #fff;
+}
+.ai-btn-primary:hover { background: #111; border-color: #111; color: #fff; }
+.ai-btn-primary i { color: #fff; }
+
+/* Result box */
+.ai-result {
+    display: none;
+    margin: 0 12px 10px;
+    padding: 12px;
+    background: #f5f5f5;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #242424;
+}
+.ai-result.visible { display: block; }
+
+#aiResultText {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ai-result-actions {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding-top: 8px; border-top: 1px solid #d0d0d0;
+}
+.ai-result-actions .ai-btn { width: auto; }
+
+/* Title chips */
+.ai-title-chips {
+    display: flex; flex-direction: column; gap: 5px;
+    margin: 0 12px 10px;
+}
+.ai-title-chip {
+    padding: 9px 12px;
+    background: #f5f5f5; border: 1px solid #d0d0d0; border-radius: 8px;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease;
+    text-align: left; font-family: inherit; color: #242424;
+    line-height: 1.4;
+}
+.ai-title-chip:hover { border-color: #242424; background: #ebebeb; }
+
+/* Tag chips */
+.ai-tag-chips {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin: 0 12px 10px;
+}
+.ai-tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 26px; padding: 0 10px;
+    background: #ebebeb; border: 1px solid #c0c0c0; border-radius: 99px;
+    font-size: 0.75rem; font-weight: 600; color: #242424;
+    cursor: pointer; transition: background 160ms ease; font-family: inherit;
+}
+.ai-tag-chip:hover { background: #d8d8d8; }
+
+/* Spinner */
+.ai-spinner {
+    display: none; align-items: center; gap: 8px;
+    padding: 8px 12px 10px;
+    font-size: 0.8rem; color: #555;
+}
+.ai-spinner.visible { display: flex; }
+
+@@keyframes spin { to { transform: rotate(360deg); } }
+.ai-spin-icon { animation: spin 0.8s linear infinite; font-size: 0.85rem; color: #242424; }
+
+/* Hint text */
+.ai-hint {
+    margin: 4px 12px 12px;
+    padding: 8px 10px;
+    background: #f2f2f2;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: #555;
+    line-height: 1.5;
+}
+.ai-hint i { color: #555; margin-right: 3px; }
+
+/* Image picker */
+.ai-image-section { margin: 0 12px 12px; }
+
+.ai-image-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.ai-image-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.ai-image-item {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 160ms ease, transform 160ms ease;
+    aspect-ratio: 16/9;
+    background: #e8e8e8;
+}
+
+.ai-image-item:hover { border-color: #242424; transform: scale(1.02); }
+.ai-image-item.selected { border-color: #242424; }
+
+.ai-image-item img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+}
+
+.ai-image-item-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 160ms ease;
+}
+
+.ai-image-item:hover .ai-image-item-overlay { background: rgba(0,0,0,0.25); }
+
+.ai-image-item-overlay i {
+    color: #fff; font-size: 1.1rem;
+    opacity: 0; transition: opacity 160ms ease;
+}
+
+.ai-image-item:hover .ai-image-item-overlay i { opacity: 1; }
+
+.ai-image-kw-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #555;
+    margin: 6px 0 4px;
+    grid-column: 1 / -1;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.ai-image-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 16px 0;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@@media (max-width: 1024px) {
+    .editor-layout { grid-template-columns: 1fr; }
+    .editor-canvas { padding: 32px 40px 40px; border-right: none; border-bottom: 1px solid var(--line); }
+    .ai-sidebar { position: static; max-height: none; padding: 20px 40px 40px; }
+    .ai-actions { flex-direction: row; flex-wrap: wrap; }
+    .ai-btn { width: auto; }
+}
+
 @@media (max-width: 768px) {
     .editor-topbar { padding: 0 16px; }
     .editor-topbar-title { display: none; }
-    .editor-canvas { padding: 32px 16px 60px; }
+    .editor-canvas { padding: 24px 16px 32px; }
+    .ai-sidebar { padding: 16px 16px 32px; }
     .editor-meta-row { grid-template-columns: 1fr; }
     .editor-meta-field--wide { grid-column: 1; }
 }
@@ -293,18 +502,258 @@
 
 <script src="https://cdn.tiny.cloud/1/81o0jisqpcft2bdbsj44ru6xu3vaw5nab39x3z4hl5h1lrrn/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
+    // ── TinyMCE init ──────────────────────────────────────────────────────────
     tinymce.init({
         selector: "#storyEditor",
-        height: 560,
+        height: 420,
         menubar: false,
         plugins: ["advlist","autolink","lists","link","image","table","code","fullscreen","help","wordcount","searchreplace"],
         toolbar: "undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist blockquote | link image table | code fullscreen",
         skin: "oxide",
-        content_style: "body { font-family: Georgia, 'Times New Roman', serif; font-size: 19px; line-height: 1.8; padding: 24px 32px; max-width: 100%; color: #242424; }",
+        content_style: "body { font-family: Georgia, 'Times New Roman', serif; font-size: 19px; line-height: 1.8; padding: 20px 28px; max-width: 100%; color: #242424; }",
         placeholder: "Tell your story…",
         toolbar_location: "top",
         toolbar_sticky: true,
         toolbar_sticky_offset: 104
+    });
+
+    // ── AI helpers ────────────────────────────────────────────────────────────
+    const antiForgeryToken = () =>
+        document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+    async function callAi(endpoint, text) {
+        const res = await fetch(`/api/ai/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': antiForgeryToken()
+            },
+            body: JSON.stringify({ text })
+        });
+        if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
+        return res.json();
+    }
+
+    function getEditorText() {
+        return tinymce.get('storyEditor')?.getContent({ format: 'text' }) ?? '';
+    }
+
+    function getSelectedText() {
+        return tinymce.get('storyEditor')?.selection?.getContent({ format: 'text' }) ?? '';
+    }
+
+    function setLoading(loading) {
+        document.querySelectorAll('.ai-btn').forEach(b => b.disabled = loading);
+        const spinner = document.getElementById('aiSpinner');
+        spinner?.classList.toggle('visible', loading);
+        if (loading) {
+            document.getElementById('aiResult')?.classList.remove('visible');
+            document.getElementById('aiTitleChips')?.replaceChildren();
+            document.getElementById('aiTagChips')?.replaceChildren();
+        }
+    }
+
+    function showResult(text) {
+        const box = document.getElementById('aiResult');
+        const txt = document.getElementById('aiResultText');
+        if (!box || !txt) return;
+        txt.textContent = text;
+        box.classList.add('visible');
+        // Hide both apply buttons first
+        document.getElementById('btnApplyImprove').style.display  = 'none';
+        document.getElementById('btnApplyContinue').style.display = 'none';
+    }
+
+    // ── Improve selected text ─────────────────────────────────────────────────
+    document.getElementById('btnImprove')?.addEventListener('click', async () => {
+        const selected = getSelectedText();
+        const text     = selected || getEditorText();
+        if (!text.trim()) { alert('Write something first, then select text to improve (or leave nothing selected to improve all).'); return; }
+
+        setLoading(true);
+        try {
+            const data = await callAi('improve', text);
+            showResult(data.result);
+
+            // Show apply button
+            const applyBtn = document.getElementById('btnApplyImprove');
+            if (applyBtn) {
+                applyBtn.style.display = '';
+                applyBtn.onclick = () => {
+                    const editor = tinymce.get('storyEditor');
+                    if (selected) {
+                        editor.selection.setContent(data.result);
+                    } else {
+                        editor.setContent(data.result);
+                    }
+                    document.getElementById('aiResult')?.classList.remove('visible');
+                };
+            }
+        } catch { alert('AI request failed. Check your API key.'); }
+        finally { setLoading(false); }
+    });
+
+    // ── Continue writing ──────────────────────────────────────────────────────
+    document.getElementById('btnContinue')?.addEventListener('click', async () => {
+        const text = getEditorText();
+        if (!text.trim()) { alert('Write a few sentences first so AI knows what to continue.'); return; }
+
+        setLoading(true);
+        try {
+            const data = await callAi('continue', text);
+            showResult(data.result);
+
+            const applyBtn = document.getElementById('btnApplyContinue');
+            if (applyBtn) {
+                applyBtn.style.display = '';
+                applyBtn.onclick = () => {
+                    const editor = tinymce.get('storyEditor');
+                    editor.execCommand('mceInsertContent', false, '<p>' + data.result.replace(/\n\n/g, '</p><p>') + '</p>');
+                    document.getElementById('aiResult')?.classList.remove('visible');
+                };
+            }
+        } catch { alert('AI request failed. Check your API key.'); }
+        finally { setLoading(false); }
+    });
+
+    // ── Auto-fill excerpt ─────────────────────────────────────────────────────
+    document.getElementById('btnSummarize')?.addEventListener('click', async () => {
+        const text = getEditorText();
+        if (!text.trim()) { alert('Write some content first.'); return; }
+
+        setLoading(true);
+        try {
+            const data = await callAi('summarize', text);
+            const excerptInput = document.getElementById('Excerpt');
+            if (excerptInput) {
+                excerptInput.value = data.result;
+                excerptInput.focus();
+            }
+        } catch { alert('AI request failed. Check your API key.'); }
+        finally { setLoading(false); }
+    });
+
+    // ── Suggest titles ────────────────────────────────────────────────────────
+    document.getElementById('btnSuggestTitle')?.addEventListener('click', async () => {
+        const text = getEditorText();
+        if (!text.trim()) { alert('Write some content first.'); return; }
+
+        setLoading(true);
+        try {
+            const data  = await callAi('suggest-title', text);
+            const chips = document.getElementById('aiTitleChips');
+            if (!chips) return;
+            chips.replaceChildren();
+            (data.titles || []).forEach(title => {
+                const btn = document.createElement('button');
+                btn.type      = 'button';
+                btn.className = 'ai-title-chip';
+                btn.textContent = title;
+                btn.onclick = () => {
+                    document.getElementById('Title').value = title;
+                    chips.replaceChildren();
+                };
+                chips.appendChild(btn);
+            });
+        } catch { alert('AI request failed. Check your API key.'); }
+        finally { setLoading(false); }
+    });
+
+    // ── Suggest tags ──────────────────────────────────────────────────────────
+    document.getElementById('btnSuggestTags')?.addEventListener('click', async () => {
+        const text = getEditorText();
+        if (!text.trim()) { alert('Write some content first.'); return; }
+
+        setLoading(true);
+        try {
+            const data  = await callAi('suggest-tags', text);
+            const chips = document.getElementById('aiTagChips');
+            if (!chips) return;
+            chips.replaceChildren();
+            (data.tags || []).forEach(tag => {
+                const btn = document.createElement('button');
+                btn.type      = 'button';
+                btn.className = 'ai-tag-chip';
+                btn.innerHTML = `<i class="fas fa-plus"></i> ${tag}`;
+                btn.onclick = () => {
+                    const topicInput = document.getElementById('Topic');
+                    const current    = topicInput.value.trim();
+                    topicInput.value = current ? `${current}, ${tag}` : tag;
+                    btn.remove();
+                };
+                chips.appendChild(btn);
+            });
+        } catch { alert('AI request failed. Check your API key.'); }
+        finally { setLoading(false); }
+    });
+
+    // ── Suggest cover images ──────────────────────────────────────────────────
+    document.getElementById('btnSuggestImages')?.addEventListener('click', async () => {
+        const text = getEditorText() || document.getElementById('Title')?.value || '';
+        if (!text.trim()) { alert('Write some content or a title first so AI knows what to search for.'); return; }
+
+        const section = document.getElementById('aiImageSection');
+        const grid    = document.getElementById('aiImageGrid');
+        const label   = document.getElementById('aiImageLabel');
+
+        setLoading(true);
+        section.style.display = 'none';
+        grid.replaceChildren();
+
+        try {
+            const data = await callAi('suggest-images', text);
+
+            section.style.display = '';
+            label.textContent     = 'Click an image to use it as cover';
+
+            // Show loading placeholders first
+            grid.innerHTML = '<div class="ai-image-loading"><i class="fas fa-circle-notch ai-spin-icon"></i> Loading images…</div>';
+
+            // Build image items grouped by keyword
+            grid.replaceChildren();
+            (data.images || []).forEach((img, idx) => {
+                // Add keyword label before first image of each keyword
+                if (idx % 2 === 0) {
+                    const kwLabel = document.createElement('div');
+                    kwLabel.className   = 'ai-image-kw-label';
+                    kwLabel.textContent = img.keyword;
+                    grid.appendChild(kwLabel);
+                }
+
+                const item = document.createElement('div');
+                item.className = 'ai-image-item';
+
+                const image = document.createElement('img');
+                image.src     = img.thumbUrl;
+                image.alt     = img.keyword;
+                image.loading = 'lazy';
+
+                const overlay = document.createElement('div');
+                overlay.className = 'ai-image-item-overlay';
+                overlay.innerHTML = '<i class="fas fa-check-circle"></i>';
+
+                item.appendChild(image);
+                item.appendChild(overlay);
+
+                item.addEventListener('click', () => {
+                    // Fill the Cover Image URL field with the full-size URL
+                    const coverInput = document.getElementById('CoverImageUrl');
+                    if (coverInput) {
+                        coverInput.value = img.url;
+                        coverInput.focus();
+                        // Highlight the selected item
+                        grid.querySelectorAll('.ai-image-item').forEach(el => el.classList.remove('selected'));
+                        item.classList.add('selected');
+                        // Scroll the cover input into view
+                        coverInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+
+                grid.appendChild(item);
+            });
+
+        } catch { alert('AI request failed. Check your API key.'); }
+        finally { setLoading(false); }
     });
 </script>
 }
