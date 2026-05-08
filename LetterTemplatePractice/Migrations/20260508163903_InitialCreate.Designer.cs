@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LetterTemplatePractice.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260430023302_AddFollowsAndNotifications")]
-    partial class AddFollowsAndNotifications
+    [Migration("20260508163903_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
