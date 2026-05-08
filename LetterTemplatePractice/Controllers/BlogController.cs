@@ -351,6 +351,180 @@ namespace LetterTemplatePractice.Controllers
             return RedirectToAction(nameof(Details), new { slug = comment.Post.Slug });
         }
 
+        // ────────────────────────────── Profile ──────────────────────────────
+
+        [AllowAnonymous]
+        [HttpGet("@{username}")]
+        public async Task<IActionResult> Profile(string username)
+        {
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username == username);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var currentUserId = GetCurrentUserId();
+
+            var posts = await _context.BlogPosts
+                .AsNoTracking()
+                .Include(p => p.Author)
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Where(p => p.AuthorId == user.Id && p.IsPublished)
+                .OrderByDescending(p => p.PublishedAt)
+                .ToListAsync();
+
+            var followerCount = await _context.Follows
+                .CountAsync(f => f.FollowingId == user.Id);
+
+            var followingCount = await _context.Follows
+                .CountAsync(f => f.FollowerId == user.Id);
+
+            var isFollowing = currentUserId.HasValue
+                && await _context.Follows
+                    .AnyAsync(f => f.FollowerId == currentUserId.Value && f.FollowingId == user.Id);
+
+            var model = new ProfileViewModel
+            {
+                User = user,
+                Posts = posts,
+                FollowerCount = followerCount,
+                FollowingCount = followingCount,
+                IsFollowing = isFollowing,
+                IsOwnProfile = currentUserId == user.Id
+            };
+
+            return View(model);
+        }
+
+        [HttpPost("Blog/ToggleFollow/{userId}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleFollow(int userId)
+        {
+            var currentUserId = GetRequiredUserId();
+
+            if (currentUserId == userId)
+            {
+                return BadRequest(new { error = "You cannot follow yourself." });
+            }
+
+            var targetUser = await _context.Users.FindAsync(userId);
+            if (targetUser == null)
+            {
+                return NotFound();
+            }
+
+            var existingFollow = await _context.Follows
+                .FirstOrDefaultAsync(f => f.FollowerId == currentUserId && f.FollowingId == userId);
+
+            bool following;
+            if (existingFollow == null)
+            {
+                _context.Follows.Add(new Follow
+                {
+                    FollowerId = currentUserId,
+                    FollowingId = userId,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Create notification for the followed user
+                _context.Notifications.Add(new Notification
+                {
+                    RecipientId = userId,
+                    ActorId = currentUserId,
+                    Type = "follow",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                following = true;
+            }
+            else
+            {
+                _context.Follows.Remove(existingFollow);
+                following = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            var followerCount = await _context.Follows.CountAsync(f => f.FollowingId == userId);
+
+            _logger.LogInformation(Category,
+                $"User {currentUserId} {(following ? "followed" : "unfollowed")} user {userId}.",
+                "/Blog/ToggleFollow", currentUserId.ToString());
+
+            return Json(new { following, followerCount });
+        }
+
+        [AllowAnonymous]
+        [HttpGet("Blog/Followers/{username}")]
+        public async Task<IActionResult> Followers(string username)
+        {
+            var user = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return NotFound();
+
+            var currentUserId = GetCurrentUserId();
+
+            var followers = await _context.Follows
+                .AsNoTracking()
+                .Where(f => f.FollowingId == user.Id)
+                .OrderByDescending(f => f.CreatedAt)
+                .Select(f => f.Follower)
+                .ToListAsync();
+
+            var followingIds = currentUserId.HasValue
+                ? await _context.Follows
+                    .Where(f => f.FollowerId == currentUserId.Value)
+                    .Select(f => f.FollowingId)
+                    .ToListAsync()
+                : new List<int>();
+
+            return View("FollowList", new FollowListViewModel
+            {
+                ProfileUser = user,
+                Users = followers,
+                FollowingIds = followingIds,
+                ActiveTab = "followers"
+            });
+        }
+
+        [AllowAnonymous]
+        [HttpGet("Blog/Following/{username}")]
+        public async Task<IActionResult> Following(string username)
+        {
+            var user = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return NotFound();
+
+            var currentUserId = GetCurrentUserId();
+
+            var following = await _context.Follows
+                .AsNoTracking()
+                .Where(f => f.FollowerId == user.Id)
+                .OrderByDescending(f => f.CreatedAt)
+                .Select(f => f.Following)
+                .ToListAsync();
+
+            var followingIds = currentUserId.HasValue
+                ? await _context.Follows
+                    .Where(f => f.FollowerId == currentUserId.Value)
+                    .Select(f => f.FollowingId)
+                    .ToListAsync()
+                : new List<int>();
+
+            return View("FollowList", new FollowListViewModel
+            {
+                ProfileUser = user,
+                Users = following,
+                FollowingIds = followingIds,
+                ActiveTab = "following"
+            });
+        }
+
         private int GetRequiredUserId()
         {
             return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

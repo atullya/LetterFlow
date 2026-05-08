@@ -19,5 +19,6 @@ namespace LetterTemplatePractice.Auth
         Task<(bool Success, string? Error)> UpdateProfileAsync(int userId, string username, string email, string? displayName);
         Task<(bool Success, string? Error)> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
         Task<(bool Success, string? Error)> UpdateAvatarAsync(int userId, string avatarUrl);
+        Task<ApplicationUser?> FindOrCreateGoogleUserAsync(string googleId, string email, string? displayName, string? avatarUrl);
     }
 }

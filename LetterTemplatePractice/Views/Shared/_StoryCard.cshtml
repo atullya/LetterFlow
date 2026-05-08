@@ -11,7 +11,7 @@
 
     <!-- Tiny author row -->
     <div class="sc-author-row">
-        <div class="sc-avatar">
+        <a href="/@@@(post.Author?.Username)" class="sc-avatar">
             @if (!string.IsNullOrEmpty(post.Author?.AvatarUrl))
             {
                 <img src="@post.Author.AvatarUrl" alt="@authorName" />
@@ -20,8 +20,8 @@
             {
                 <span>@authorInit</span>
             }
-        </div>
-        <span class="sc-author-name">@authorName</span>
+        </a>
+        <a href="/@@@(post.Author?.Username)" class="sc-author-name">@authorName</a>
     </div>
 
     <!-- Title + optional thumb -->

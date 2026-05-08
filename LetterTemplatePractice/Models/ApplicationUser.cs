@@ -22,9 +22,11 @@ namespace LetterTemplatePractice.Models
         [StringLength(500)]
         public string? AvatarUrl { get; set; }
 
-        /// <summary>BCrypt hash of the user's password.</summary>
-        [Required]
-        public string PasswordHash { get; set; } = string.Empty;
+        /// <summary>BCrypt hash of the user's password. Null for OAuth-only users.</summary>
+        public string? PasswordHash { get; set; }
+
+        [StringLength(100)]
+        public string? GoogleId { get; set; }
 
         [StringLength(20)]
         public string Role { get; set; } = UserRoles.User;
@@ -38,6 +40,15 @@ namespace LetterTemplatePractice.Models
         public virtual ICollection<BlogPost> BlogPosts { get; set; } = new List<BlogPost>();
         public virtual ICollection<BlogComment> BlogComments { get; set; } = new List<BlogComment>();
         public virtual ICollection<BlogLike> BlogLikes { get; set; } = new List<BlogLike>();
+
+        /// <summary>Users who follow this user.</summary>
+        public virtual ICollection<Follow> Followers { get; set; } = new List<Follow>();
+
+        /// <summary>Users this user follows.</summary>
+        public virtual ICollection<Follow> Following { get; set; } = new List<Follow>();
+
+        /// <summary>Notifications received by this user.</summary>
+        public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     }
 
     /// <summary>Role constants — avoids magic strings throughout the codebase.</summary>

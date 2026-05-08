@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using LetterTemplatePractice.Data;
 using LetterTemplatePractice.Models;
 using LetterTemplatePractice.Models.ViewModels;
@@ -91,5 +92,64 @@ public class HomeController : Controller
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+
+    // ────────────────────────── Notifications API ──────────────────────────
+
+    [Authorize]
+    [HttpGet("Notifications/Unread")]
+    public async Task<IActionResult> UnreadNotifications()
+    {
+        var rawId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(rawId, out var userId)) return Unauthorized();
+
+        var notifications = await _context.Notifications
+            .AsNoTracking()
+            .Where(n => n.RecipientId == userId)
+            .OrderByDescending(n => n.CreatedAt)
+            .Take(30)
+            .Select(n => new
+            {
+                n.Id,
+                n.Type,
+                n.IsRead,
+                n.CreatedAt,
+                n.PostId,
+                Actor = new
+                {
+                    n.Actor.Id,
+                    n.Actor.Username,
+                    n.Actor.DisplayName,
+                    n.Actor.AvatarUrl
+                },
+                Post = n.Post != null ? new
+                {
+                    n.Post.Title,
+                    n.Post.Slug
+                } : null
+            })
+            .ToListAsync();
+
+        var unreadCount = notifications.Count(n => !n.IsRead);
+
+        return Json(new { notifications, unreadCount });
+    }
+
+    [Authorize]
+    [HttpPost("Notifications/MarkRead")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkNotificationsRead()
+    {
+        var rawId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(rawId, out var userId)) return Unauthorized();
+
+        var unread = await _context.Notifications
+            .Where(n => n.RecipientId == userId && !n.IsRead)
+            .ToListAsync();
+
+        foreach (var n in unread) n.IsRead = true;
+        await _context.SaveChangesAsync();
+
+        return Json(new { success = true });
     }
 }

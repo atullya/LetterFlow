@@ -42,7 +42,7 @@ namespace LetterTemplatePractice.Auth
                 return new LoginResult(false, "Invalid username or password.", null);
             }
 
-            if (!_hasher.Verify(password, user.PasswordHash))
+            if (user.PasswordHash is null || !_hasher.Verify(password, user.PasswordHash))
             {
                 _logger.LogWarning(Category, $"Invalid password for username: {username}");
                 return new LoginResult(false, "Invalid username or password.", null);
@@ -133,7 +133,7 @@ namespace LetterTemplatePractice.Auth
             var user = await _context.Users.FindAsync(userId);
             if (user is null) return (false, "User not found.");
 
-            if (!_hasher.Verify(currentPassword, user.PasswordHash))
+            if (user.PasswordHash is null || !_hasher.Verify(currentPassword, user.PasswordHash))
                 return (false, "Current password is incorrect.");
 
             user.PasswordHash = _hasher.Hash(newPassword);
@@ -154,6 +154,63 @@ namespace LetterTemplatePractice.Auth
 
             await _context.SaveChangesAsync();
             return (true, null);
+        }
+
+        public async Task<ApplicationUser?> FindOrCreateGoogleUserAsync(
+            string googleId, string email, string? displayName, string? avatarUrl)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.GoogleId == googleId);
+            if (user is not null)
+            {
+                if (!user.IsActive) return null;
+
+                user.LastLoginAt = DateTime.UtcNow;
+                if (avatarUrl is not null) user.AvatarUrl = avatarUrl;
+                if (displayName is not null && user.DisplayName is null) user.DisplayName = displayName;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation(Category, $"Google user '{user.Username}' logged in.");
+                return user;
+            }
+
+            user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant());
+            if (user is not null)
+            {
+                if (!user.IsActive) return null;
+
+                user.GoogleId   = googleId;
+                user.LastLoginAt = DateTime.UtcNow;
+                if (avatarUrl is not null) user.AvatarUrl = avatarUrl;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation(Category, $"Linked Google account to existing user '{user.Username}'.");
+                return user;
+            }
+
+            var baseUsername = email.Split('@')[0];
+            var username = baseUsername;
+            var suffix = 1;
+            while (await _context.Users.AnyAsync(u => u.Username == username))
+                username = $"{baseUsername}{suffix++}";
+
+            var newUser = new ApplicationUser
+            {
+                Username     = username,
+                Email        = email.ToLowerInvariant(),
+                DisplayName  = displayName ?? username,
+                AvatarUrl    = avatarUrl,
+                GoogleId     = googleId,
+                PasswordHash = null,
+                Role         = UserRoles.User,
+                IsActive     = true,
+                CreatedAt    = DateTime.UtcNow,
+                UpdatedAt    = DateTime.UtcNow,
+                LastLoginAt  = DateTime.UtcNow
+            };
+
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(Category, $"New Google user registered: '{username}'.");
+            return newUser;
         }
     }
 }

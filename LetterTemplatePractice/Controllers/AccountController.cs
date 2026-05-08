@@ -88,6 +88,7 @@ namespace LetterTemplatePractice.Controllers
                 requestPath: "/Account/Login",
                 userId: user.Id.ToString());
 
+            TempData["SuccessMessage"] = $"Welcome back, {user.Username}! You have signed in successfully.";
             return RedirectToLocal(model.ReturnUrl);
         }
 
@@ -140,6 +141,80 @@ namespace LetterTemplatePractice.Controllers
                 userId: User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             return RedirectToAction(nameof(Login));
+        }
+
+        // ── GET /Account/GoogleLogin ──────────────────────────────────────────
+        [HttpGet]
+        public IActionResult GoogleLogin(string? returnUrl = null)
+        {
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = Url.Action(nameof(ExternalLoginCallback), new { returnUrl })
+            };
+            return Challenge(properties, "Google");
+        }
+
+        // ── GET /Account/ExternalLoginCallback ────────────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> ExternalLoginCallback(string? returnUrl = null)
+        {
+            var authenticateResult = await HttpContext.AuthenticateAsync("External");
+
+            if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
+            {
+                _logger.LogWarning(Category, "External login callback failed — no principal.",
+                    requestPath: "/Account/ExternalLoginCallback");
+                TempData["ErrorMessage"] = "Google login failed. Please try again.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            var googleId    = authenticateResult.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            var email       = authenticateResult.Principal.FindFirstValue(ClaimTypes.Email);
+            var displayName = authenticateResult.Principal.FindFirstValue(ClaimTypes.Name);
+            var avatarUrl   = authenticateResult.Principal.FindFirstValue("urn:google:picture");
+
+            await HttpContext.SignOutAsync("External");
+
+            if (string.IsNullOrEmpty(googleId) || string.IsNullOrEmpty(email))
+            {
+                _logger.LogWarning(Category, "Google response missing required claims.",
+                    requestPath: "/Account/ExternalLoginCallback");
+                TempData["ErrorMessage"] = "Could not retrieve your Google account info.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            var user = await _authService.FindOrCreateGoogleUserAsync(googleId, email, displayName, avatarUrl);
+            if (user is null)
+            {
+                _logger.LogWarning(Category, $"Google account disabled for email: {email}",
+                    requestPath: "/Account/ExternalLoginCallback");
+                TempData["ErrorMessage"] = "This account has been disabled.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new(ClaimTypes.Name,           user.Username),
+                new(ClaimTypes.Email,          user.Email),
+                new(ClaimTypes.Role,           user.Role)
+            };
+
+            var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30) });
+
+            _logger.LogInformation(Category,
+                $"User '{user.Username}' authenticated via Google.",
+                requestPath: "/Account/ExternalLoginCallback",
+                userId: user.Id.ToString());
+
+            TempData["SuccessMessage"] = $"Welcome, {user.DisplayName ?? user.Username}! You have signed in successfully.";
+            return RedirectToLocal(returnUrl);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

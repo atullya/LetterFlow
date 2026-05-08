@@ -1,0 +1,86 @@
+@model LetterTemplatePractice.Models.ViewModels.FollowListViewModel
+@{
+    var tabLabel = char.ToUpper(Model.ActiveTab[0]) + Model.ActiveTab[1..];
+    ViewData["Title"] = $"{tabLabel} of {Model.ProfileUser.DisplayName ?? Model.ProfileUser.Username} – LetterFlow";
+}
+
+<div class="feed-layout">
+    <main class="feed-main" style="padding-top:32px;">
+
+        @* ── Back to Profile ── *@
+        <div style="margin-bottom:20px;">
+            <a href="@Url.Action("Profile", "Blog", new { username = Model.ProfileUser.Username })"
+               style="color:var(--muted); font-size:0.88rem; text-decoration:none;">
+                <i class="fa-solid fa-arrow-left"></i> @Model.ProfileUser.DisplayName @@ @Model.ProfileUser.Username
+            </a>
+        </div>
+
+        @* ── Tabs ── *@
+        <div class="fl-tabs" style="margin-bottom:24px;">
+            <a class="fl-tab @(Model.ActiveTab == "followers" ? "fl-tab--active" : "")"
+               href="@Url.Action("Followers", "Blog", new { username = Model.ProfileUser.Username })">
+                Followers
+            </a>
+            <a class="fl-tab @(Model.ActiveTab == "following" ? "fl-tab--active" : "")"
+               href="@Url.Action("Following", "Blog", new { username = Model.ProfileUser.Username })">
+                Following
+            </a>
+        </div>
+
+        @* ── User List ── *@
+        @if (!Model.Users.Any())
+        {
+            <div style="text-align:center; padding:48px 0; color:var(--muted);">
+                <i class="fa-regular fa-user" style="font-size:2rem; margin-bottom:8px; display:block;"></i>
+                @(Model.ActiveTab == "followers" ? "No followers yet." : "Not following anyone yet.")
+            </div>
+        }
+        else
+        {
+            <div class="follow-list">
+                @foreach (var u in Model.Users)
+                {
+                    var isFollowing = Model.FollowingIds.Contains(u.Id);
+                    var isSelf = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == u.Id.ToString();
+                    <div class="follow-item">
+                        <a href="@Url.Action("Profile", "Blog", new { username = u.Username })" class="follow-item-avatar">
+                            @if (!string.IsNullOrWhiteSpace(u.AvatarUrl))
+                            {
+                                <img src="@u.AvatarUrl" alt="@u.DisplayName" />
+                            }
+                            else
+                            {
+                                @((u.DisplayName ?? u.Username ?? "?").Substring(0, 1).ToUpper())
+                            }
+                        </a>
+                        <div class="follow-item-info">
+                            <a href="@Url.Action("Profile", "Blog", new { username = u.Username })" class="follow-item-name">
+                                @(u.DisplayName ?? u.Username)
+                            </a>
+                            <div class="follow-item-username">@@@u.Username</div>
+                        </div>
+                        @if (User.Identity?.IsAuthenticated == true && !isSelf)
+                        {
+                            <button type="button"
+                                    class="btn-follow btn-follow-sm @(isFollowing ? "btn-following" : "")"
+                                    data-user-id="@u.Id"
+                                    data-url="@Url.Action("ToggleFollow", "Blog", new { userId = u.Id })">
+                                @(isFollowing ? "Following" : "Follow")
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+    </main>
+
+    <aside class="feed-rail">
+        <div class="rail-box" style="padding:16px;">
+            <div style="font-weight:700; margin-bottom:8px;">@(Model.ProfileUser.DisplayName ?? Model.ProfileUser.Username)</div>
+            <div style="font-size:0.88rem; color:var(--muted);">
+                @tabLabel list
+            </div>
+        </div>
+    </aside>
+</div>

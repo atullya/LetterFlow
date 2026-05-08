@@ -11,6 +11,8 @@ namespace LetterTemplatePractice.Data
         public DbSet<BlogPost>        BlogPosts { get; set; }
         public DbSet<BlogComment>     BlogComments { get; set; }
         public DbSet<BlogLike>        BlogLikes { get; set; }
+        public DbSet<Follow>          Follows { get; set; }
+        public DbSet<Notification>    Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -25,7 +27,9 @@ namespace LetterTemplatePractice.Data
                 e.Property(u => u.Email).IsRequired().HasMaxLength(100);
                 e.Property(u => u.DisplayName).HasMaxLength(100);
                 e.Property(u => u.AvatarUrl).HasMaxLength(500);
-                e.Property(u => u.PasswordHash).IsRequired();
+                e.Property(u => u.PasswordHash).HasMaxLength(200);
+                e.Property(u => u.GoogleId).HasMaxLength(100);
+                e.HasIndex(u => u.GoogleId).IsUnique().HasFilter("\"GoogleId\" IS NOT NULL");
                 e.Property(u => u.Role).IsRequired().HasMaxLength(20).HasDefaultValue("User");
                 e.Property(u => u.IsActive).HasDefaultValue(true);
             });
@@ -75,6 +79,40 @@ namespace LetterTemplatePractice.Data
                     .WithMany(u => u.BlogLikes)
                     .HasForeignKey(l => l.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Follow>(e =>
+            {
+                e.HasKey(f => f.Id);
+                e.HasIndex(f => new { f.FollowerId, f.FollowingId }).IsUnique();
+                e.HasOne(f => f.Follower)
+                    .WithMany(u => u.Following)
+                    .HasForeignKey(f => f.FollowerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(f => f.Following)
+                    .WithMany(u => u.Followers)
+                    .HasForeignKey(f => f.FollowingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Notification>(e =>
+            {
+                e.HasKey(n => n.Id);
+                e.Property(n => n.Type).IsRequired().HasMaxLength(40);
+                e.HasIndex(n => new { n.RecipientId, n.IsRead });
+                e.HasIndex(n => n.CreatedAt);
+                e.HasOne(n => n.Recipient)
+                    .WithMany(u => u.Notifications)
+                    .HasForeignKey(n => n.RecipientId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(n => n.Actor)
+                    .WithMany()
+                    .HasForeignKey(n => n.ActorId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(n => n.Post)
+                    .WithMany()
+                    .HasForeignKey(n => n.PostId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

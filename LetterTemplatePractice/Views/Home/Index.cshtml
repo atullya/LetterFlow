@@ -5,6 +5,13 @@
     if (string.IsNullOrEmpty(activeTab)) activeTab = "foryou";
 }
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom:16px;">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
 <div class="feed-layout">
     <main class="feed-main">
 

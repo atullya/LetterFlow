@@ -1,0 +1,81 @@
+@model LetterTemplatePractice.Models.ViewModels.ProfileViewModel
+@{
+    ViewData["Title"] = $"{Model.User.DisplayName ?? Model.User.Username} – LetterFlow";
+    var user = Model.User;
+}
+
+<div class="feed-layout">
+    <main class="feed-main" style="padding-top:32px;">
+
+        @* ── Profile Header ── *@
+        <div class="profile-header">
+            <div class="profile-avatar-lg">
+                @if (!string.IsNullOrWhiteSpace(user.AvatarUrl))
+                {
+                    <img src="@user.AvatarUrl" alt="@user.DisplayName" />
+                }
+                else
+                {
+                    @((user.DisplayName ?? user.Username ?? "?").Substring(0, 1).ToUpper())
+                }
+            </div>
+
+            <h1 class="profile-name">@(user.DisplayName ?? user.Username)</h1>
+            @if (user.DisplayName != null && user.Username != null)
+            {
+                <div class="profile-username">@@@user.Username</div>
+            }
+            <div class="profile-member-since">Member since @user.CreatedAt.ToString("MMMM yyyy")</div>
+
+            <div class="profile-stats">
+                <a href="@Url.Action("Followers", "Blog", new { username = user.Username })" class="profile-stat-link">
+                    <strong id="follower-count-@user.Id">@Model.FollowerCount</strong> followers
+                </a>
+                <span class="profile-stat-sep">&middot;</span>
+                <a href="@Url.Action("Following", "Blog", new { username = user.Username })" class="profile-stat-link">
+                    <strong>@Model.FollowingCount</strong> following
+                </a>
+            </div>
+
+            @if (!Model.IsOwnProfile && User.Identity?.IsAuthenticated == true)
+            {
+                <button type="button"
+                        class="btn-follow @(Model.IsFollowing ? "btn-following" : "")"
+                        data-user-id="@user.Id"
+                        data-url="@Url.Action("ToggleFollow", "Blog", new { userId = user.Id })">
+                    @(Model.IsFollowing ? "Following" : "Follow")
+                </button>
+            }
+        </div>
+
+        @* ── User's Posts ── *@
+        <div class="profile-section-title" style="margin-top:32px; padding-bottom:12px; border-bottom:1px solid var(--line);">
+            <span style="font-weight:700; font-size:1rem;">Stories</span>
+        </div>
+
+        @if (!Model.Posts.Any())
+        {
+            <div style="text-align:center; padding:48px 0; color:var(--muted);">
+                <i class="fa-regular fa-file-lines" style="font-size:2rem; margin-bottom:8px; display:block;"></i>
+                No stories yet.
+            </div>
+        }
+        else
+        {
+            @foreach (var post in Model.Posts)
+            {
+                await Html.RenderPartialAsync("_StoryCard", post);
+            }
+        }
+
+    </main>
+
+    <aside class="feed-rail">
+        <div class="rail-box" style="padding:16px;">
+            <div style="font-weight:700; margin-bottom:12px;">About</div>
+            <div style="font-size:0.88rem; color:var(--muted); line-height:1.5;">
+                @(user.DisplayName ?? user.Username) has published @Model.Posts.Count stories on LetterFlow.
+            </div>
+        </div>
+    </aside>
+</div>

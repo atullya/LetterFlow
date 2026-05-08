@@ -23,8 +23,19 @@ namespace LetterTemplatePractice.Controllers
             _env         = env;
         }
 
-        private int CurrentUserId =>
-            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private int CurrentUserId
+        {
+            get
+            {
+                var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (int.TryParse(raw, out var id))
+                    return id;
+
+                throw new InvalidOperationException(
+                    $"The current user's NameIdentifier claim ('{raw}') is not a valid database user ID. " +
+                    "This typically means an external login was not completed. Please sign out and log in again.");
+            }
+        }
 
         // GET /Settings
         public async Task<IActionResult> Index()

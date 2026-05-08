@@ -4,6 +4,7 @@
 bin/
 obj/
 out/
+build-output/
 
 # NuGet
 *.nupkg
@@ -25,6 +26,7 @@ publish/
 
 # Runtime / logs
 Logs/
+!Logs/.gitkeep
 *.log
 *.trn
 
@@ -52,8 +54,9 @@ node_modules/
 npm-debug.log*
 yarn-error.log*
 
-## ── Uploads (user content — don't commit) ───────────────────────────────────
-LetterTemplatePractice/wwwroot/uploads/
+## ── Uploads (user content — don't commit actual files) ──────────────────────
+LetterTemplatePractice/wwwroot/uploads/*
+!LetterTemplatePractice/wwwroot/uploads/.gitkeep
 
 ## ── dotnet sentinel / telemetry files ───────────────────────────────────────
 .dotnet/

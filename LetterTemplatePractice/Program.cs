@@ -19,7 +19,8 @@ builder.Services.AddSingleton<AppLogger>();
 builder.Services.AddSingleton<IAppLogger>(sp => sp.GetRequiredService<AppLogger>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AppLogger>());
 
-// Cookie auth
+const string ExternalScheme = "External";
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -29,9 +30,24 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name         = "LetterFlow.Auth";
         options.Cookie.HttpOnly     = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.Cookie.SameSite     = SameSiteMode.Strict;
+        options.Cookie.SameSite     = SameSiteMode.Lax;
         options.ExpireTimeSpan      = TimeSpan.FromHours(8);
         options.SlidingExpiration   = true;
+    })
+    .AddCookie(ExternalScheme, options =>
+    {
+        options.Cookie.Name         = "LetterFlow.External";
+        options.Cookie.HttpOnly     = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SameSite     = SameSiteMode.Lax;
+        options.ExpireTimeSpan      = TimeSpan.FromMinutes(5);
+    })
+    .AddGoogle(options =>
+    {
+        options.ClientId     = builder.Configuration["Authentication:Google:ClientId"]!;
+        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+        options.SignInScheme = ExternalScheme;
+        options.SaveTokens   = true;
     });
 
 builder.Services.AddAuthorization();
