@@ -42,7 +42,6 @@ namespace Logging
             LoadTodaysLogsFromFile();
         }
 
-        // ── IHostedService ────────────────────────────────────────────────────
         public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task StopAsync(CancellationToken cancellationToken)
