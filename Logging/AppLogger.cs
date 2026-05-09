@@ -33,7 +33,7 @@ namespace Logging
                 .MinimumLevel.Debug()
                 .WriteTo.File(
                     formatter: new JsonFormatter(),
-                    path: "Logs/app-.json",
+                    path: Path.Combine(Path.GetTempPath(), "letterflow-logs", "app-.json"),
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 30,
                     shared: true)
@@ -173,7 +173,7 @@ namespace Logging
             try
             {
                 var today    = DateTime.Now.ToString("yyyyMMdd");
-                var filePath = Path.Combine("Logs", $"app-{today}.json");
+                var filePath = Path.Combine(Path.GetTempPath(), "letterflow-logs", $"app-{today}.json");
 
                 if (!File.Exists(filePath)) return;
 
