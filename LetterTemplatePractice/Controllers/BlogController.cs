@@ -106,23 +106,44 @@ namespace LetterTemplatePractice.Controllers
             return View(model);
         }
 
-        public async Task<IActionResult> Mine()
+        public async Task<IActionResult> Mine(int? notebookId = null)
         {
             var userId = GetRequiredUserId();
             var posts = await _context.BlogPosts
                 .AsNoTracking()
+                .Include(post => post.Notebook)
                 .Include(post => post.Comments)
                 .Include(post => post.Likes)
                 .Where(post => post.AuthorId == userId)
                 .OrderByDescending(post => post.UpdatedAt)
                 .ToListAsync();
 
+            var notebooks = await _context.Notebooks
+                .AsNoTracking()
+                .Where(notebook => notebook.UserId == userId)
+                .OrderBy(notebook => notebook.Name)
+                .ToListAsync();
+
+            var selectedNotebook = notebookId.HasValue
+                ? notebooks.FirstOrDefault(notebook => notebook.Id == notebookId.Value)
+                : null;
+
+            ViewBag.Notebooks = notebooks;
+            ViewBag.SelectedNotebook = selectedNotebook;
+            ViewBag.SelectedNotebookId = selectedNotebook?.Id;
+            ViewBag.AssignablePosts = selectedNotebook == null
+                ? new List<BlogPost>()
+                : posts.Where(post => post.NotebookId != selectedNotebook.Id)
+                    .OrderByDescending(post => post.UpdatedAt)
+                    .ToList();
+
             return View(posts);
         }
 
         [HttpGet]
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
+            await PopulateNotebookOptionsAsync();
             return View("Editor", new BlogComposerViewModel());
         }
 
@@ -132,16 +153,19 @@ namespace LetterTemplatePractice.Controllers
         {
             if (!ModelState.IsValid)
             {
+                await PopulateNotebookOptionsAsync();
                 return View("Editor", model);
             }
 
             var userId = GetRequiredUserId();
             var isPublished = string.Equals(model.SubmitAction, "publish", StringComparison.OrdinalIgnoreCase) || model.IsPublished;
             var slug = await _blogService.GenerateUniqueSlugAsync(model.Title);
+            var notebookId = await ResolveNotebookIdAsync(model.NotebookId, userId);
 
             var post = new BlogPost
             {
                 AuthorId = userId,
+                NotebookId = notebookId,
                 Title = model.Title.Trim(),
                 Subtitle = model.Subtitle?.Trim(),
                 Slug = slug,
@@ -179,9 +203,12 @@ namespace LetterTemplatePractice.Controllers
                 return Forbid();
             }
 
+            await PopulateNotebookOptionsAsync(post.AuthorId);
+
             return View("Editor", new BlogComposerViewModel
             {
                 Id = post.Id,
+                NotebookId = post.NotebookId,
                 Title = post.Title,
                 Subtitle = post.Subtitle,
                 Excerpt = post.Excerpt,
@@ -200,6 +227,7 @@ namespace LetterTemplatePractice.Controllers
             if (!ModelState.IsValid)
             {
                 model.Id = id;
+                await PopulateNotebookOptionsAsync();
                 return View("Editor", model);
             }
 
@@ -216,6 +244,7 @@ namespace LetterTemplatePractice.Controllers
 
             var shouldPublish = string.Equals(model.SubmitAction, "publish", StringComparison.OrdinalIgnoreCase) || model.IsPublished;
 
+            post.NotebookId = await ResolveNotebookIdAsync(model.NotebookId, post.AuthorId);
             post.Title = model.Title.Trim();
             post.Subtitle = model.Subtitle?.Trim();
             post.Excerpt = _blogService.BuildExcerpt(model);
@@ -238,7 +267,7 @@ namespace LetterTemplatePractice.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, int? returnNotebookId = null)
         {
             var post = await _context.BlogPosts.FindAsync(id);
             if (post == null)
@@ -254,7 +283,170 @@ namespace LetterTemplatePractice.Controllers
             _context.BlogPosts.Remove(post);
             await _context.SaveChangesAsync();
 
+            return RedirectToAction(nameof(Mine), returnNotebookId.HasValue ? new { notebookId = returnNotebookId } : null);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateNotebook(string? name, string? description)
+        {
+            var userId = GetRequiredUserId();
+            name = name?.Trim() ?? string.Empty;
+            description = description?.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                TempData["NotebookError"] = "Notebook name is required.";
+                return RedirectToAction(nameof(Mine));
+            }
+
+            var exists = await _context.Notebooks
+                .AnyAsync(notebook => notebook.UserId == userId && notebook.Name == name);
+
+            if (exists)
+            {
+                TempData["NotebookError"] = "You already have a notebook with this name.";
+                return RedirectToAction(nameof(Mine));
+            }
+
+            _context.Notebooks.Add(new Notebook
+            {
+                UserId = userId,
+                Name = name,
+                Description = string.IsNullOrWhiteSpace(description) ? null : description,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            TempData["NotebookMessage"] = "Notebook created.";
+
             return RedirectToAction(nameof(Mine));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateNotebook(int id, string? name, string? description)
+        {
+            var userId = GetRequiredUserId();
+            var notebook = await _context.Notebooks
+                .FirstOrDefaultAsync(item => item.Id == id && item.UserId == userId);
+
+            if (notebook == null)
+            {
+                return NotFound();
+            }
+
+            name = name?.Trim() ?? string.Empty;
+            description = description?.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                TempData["NotebookError"] = "Notebook name is required.";
+                return RedirectToAction(nameof(Mine), new { notebookId = id });
+            }
+
+            var nameExists = await _context.Notebooks
+                .AnyAsync(item => item.UserId == userId && item.Id != id && item.Name == name);
+
+            if (nameExists)
+            {
+                TempData["NotebookError"] = "You already have a notebook with this name.";
+                return RedirectToAction(nameof(Mine), new { notebookId = id });
+            }
+
+            notebook.Name = name;
+            notebook.Description = string.IsNullOrWhiteSpace(description) ? null : description;
+            notebook.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            TempData["NotebookMessage"] = "Notebook updated.";
+
+            return RedirectToAction(nameof(Mine), new { notebookId = id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteNotebook(int id, bool deleteBlogs = false)
+        {
+            var userId = GetRequiredUserId();
+            var notebook = await _context.Notebooks
+                .FirstOrDefaultAsync(item => item.Id == id && item.UserId == userId);
+
+            if (notebook == null)
+            {
+                return NotFound();
+            }
+
+            if (deleteBlogs)
+            {
+                var posts = await _context.BlogPosts
+                    .Where(post => post.AuthorId == userId && post.NotebookId == id)
+                    .ToListAsync();
+
+                _context.BlogPosts.RemoveRange(posts);
+            }
+
+            _context.Notebooks.Remove(notebook);
+            await _context.SaveChangesAsync();
+
+            TempData["NotebookMessage"] = deleteBlogs
+                ? "Notebook and its stories were deleted."
+                : "Notebook deleted. Its stories were kept.";
+
+            return RedirectToAction(nameof(Mine));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddBlogToNotebook(int notebookId, int postId)
+        {
+            var userId = GetRequiredUserId();
+            var notebookExists = await _context.Notebooks
+                .AnyAsync(notebook => notebook.Id == notebookId && notebook.UserId == userId);
+
+            if (!notebookExists)
+            {
+                return NotFound();
+            }
+
+            var post = await _context.BlogPosts
+                .FirstOrDefaultAsync(item => item.Id == postId && item.AuthorId == userId);
+
+            if (post == null)
+            {
+                return NotFound();
+            }
+
+            post.NotebookId = notebookId;
+            post.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            TempData["NotebookMessage"] = "Story added to notebook.";
+
+            return RedirectToAction(nameof(Mine), new { notebookId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveBlogFromNotebook(int postId, int notebookId)
+        {
+            var userId = GetRequiredUserId();
+            var post = await _context.BlogPosts
+                .FirstOrDefaultAsync(item => item.Id == postId && item.AuthorId == userId && item.NotebookId == notebookId);
+
+            if (post == null)
+            {
+                return NotFound();
+            }
+
+            post.NotebookId = null;
+            post.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            TempData["NotebookMessage"] = "Story removed from notebook.";
+
+            return RedirectToAction(nameof(Mine), new { notebookId });
         }
 
         [HttpPost]
@@ -540,6 +732,29 @@ namespace LetterTemplatePractice.Controllers
         {
             var userId = GetCurrentUserId();
             return userId == post.AuthorId || User.IsInRole(UserRoles.Admin);
+        }
+
+        private async Task PopulateNotebookOptionsAsync(int? ownerId = null)
+        {
+            var userId = ownerId ?? GetRequiredUserId();
+            ViewBag.NotebookOptions = await _context.Notebooks
+                .AsNoTracking()
+                .Where(notebook => notebook.UserId == userId)
+                .OrderBy(notebook => notebook.Name)
+                .ToListAsync();
+        }
+
+        private async Task<int?> ResolveNotebookIdAsync(int? notebookId, int userId)
+        {
+            if (!notebookId.HasValue)
+            {
+                return null;
+            }
+
+            var exists = await _context.Notebooks
+                .AnyAsync(notebook => notebook.Id == notebookId.Value && notebook.UserId == userId);
+
+            return exists ? notebookId : null;
         }
     }
 }

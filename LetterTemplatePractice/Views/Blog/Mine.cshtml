@@ -5,6 +5,12 @@
     var published = Model.Where(p => p.IsPublished).ToList();
     var tab       = Context.Request.Query["tab"].ToString();
     if (string.IsNullOrEmpty(tab)) tab = "drafts";
+    var notebooks = ViewBag.Notebooks as IReadOnlyList<LetterTemplatePractice.Models.Notebook>
+                    ?? new List<LetterTemplatePractice.Models.Notebook>();
+    var selectedNotebook = ViewBag.SelectedNotebook as LetterTemplatePractice.Models.Notebook;
+    var selectedNotebookId = selectedNotebook?.Id;
+    var assignablePosts = ViewBag.AssignablePosts as IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
+                          ?? new List<LetterTemplatePractice.Models.BlogPost>();
 }
 
 <div class="stories-page">
@@ -13,10 +19,116 @@
         <a asp-action="Create" class="btn-stories-new">New story</a>
     </div>
 
+    <section class="stories-notebooks">
+        <div class="stories-notebooks-head">
+            <h2>Notebooks</h2>
+            <span>@notebooks.Count total</span>
+        </div>
+
+        @if (TempData["NotebookMessage"] is string notebookMessage)
+        {
+            <div class="stories-notebook-message">@notebookMessage</div>
+        }
+        @if (TempData["NotebookError"] is string notebookError)
+        {
+            <div class="stories-notebook-error">@notebookError</div>
+        }
+
+        <form asp-action="CreateNotebook" method="post" class="stories-notebook-form">
+            @Html.AntiForgeryToken()
+            <input name="name" maxlength="120" placeholder="Notebook name" />
+            <button type="submit">Create notebook</button>
+        </form>
+
+        @if (notebooks.Any())
+        {
+            <div class="stories-notebook-list">
+                <a asp-action="Mine" class="stories-notebook-pill @(selectedNotebook == null ? "active" : "")">
+                    <i class="fas fa-layer-group"></i>
+                    All stories
+                </a>
+                @foreach (var notebook in notebooks)
+                {
+                    <a asp-action="Mine"
+                       asp-route-notebookId="@notebook.Id"
+                       class="stories-notebook-pill @(selectedNotebookId == notebook.Id ? "active" : "")">
+                        <i class="fas fa-book"></i>
+                        @notebook.Name
+                        <span>@Model.Count(post => post.NotebookId == notebook.Id)</span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    @if (selectedNotebook != null)
+    {
+        <section class="stories-notebook-detail">
+            <div class="stories-notebook-detail-head">
+                <div>
+                    <h2>@selectedNotebook.Name</h2>
+                </div>
+                <span>@Model.Count(post => post.NotebookId == selectedNotebook.Id) stories</span>
+            </div>
+
+            <div class="stories-notebook-tools">
+                <form asp-action="UpdateNotebook" asp-route-id="@selectedNotebook.Id" method="post" class="stories-notebook-edit">
+                    @Html.AntiForgeryToken()
+                    <input name="name" maxlength="120" value="@selectedNotebook.Name" />
+                    <button type="submit">Save notebook</button>
+                </form>
+
+                <form asp-action="AddBlogToNotebook" method="post" class="stories-notebook-add">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="notebookId" value="@selectedNotebook.Id" />
+                    <select name="postId" required>
+                        <option value="">Add an existing story</option>
+                        @foreach (var post in assignablePosts)
+                        {
+                            <option value="@post.Id">@post.Title</option>
+                        }
+                    </select>
+                    <button type="submit" @(assignablePosts.Any() ? "" : "disabled")>Add story</button>
+                </form>
+
+                <form asp-action="DeleteNotebook"
+                      asp-route-id="@selectedNotebook.Id"
+                      method="post"
+                      class="stories-notebook-delete"
+                      onsubmit="return confirmNotebookDelete(this);">
+                    @Html.AntiForgeryToken()
+                    <label>
+                        <input type="checkbox" name="deleteBlogs" value="true" />
+                        Also delete stories inside this notebook
+                    </label>
+                    <button type="submit">Delete notebook</button>
+                </form>
+            </div>
+        </section>
+    }
+
     <!-- Tabs -->
+    @{
+        var scopedPosts = selectedNotebook == null
+            ? Model.ToList()
+            : Model.Where(post => post.NotebookId == selectedNotebook.Id).ToList();
+        drafts = scopedPosts.Where(p => !p.IsPublished).ToList();
+        published = scopedPosts.Where(p => p.IsPublished).ToList();
+    }
+
     <div class="stories-tabs">
-        <a href="?tab=drafts"    class="stories-tab @(tab == "drafts"    ? "active" : "")">Drafts <span class="stories-tab-count">@drafts.Count</span></a>
-        <a href="?tab=published" class="stories-tab @(tab == "published" ? "active" : "")">Published <span class="stories-tab-count">@published.Count</span></a>
+        <a asp-action="Mine"
+           asp-route-notebookId="@selectedNotebookId"
+           asp-route-tab="drafts"
+           class="stories-tab @(tab == "drafts" ? "active" : "")">
+            Drafts <span class="stories-tab-count">@drafts.Count</span>
+        </a>
+        <a asp-action="Mine"
+           asp-route-notebookId="@selectedNotebookId"
+           asp-route-tab="published"
+           class="stories-tab @(tab == "published" ? "active" : "")">
+            Published <span class="stories-tab-count">@published.Count</span>
+        </a>
     </div>
 
     <!-- Table header -->
@@ -59,9 +171,13 @@
                         <a asp-action="Details" asp-route-slug="@post.Slug" class="stories-row-title">@post.Title</a>
                         <span class="stories-row-meta">
                             @post.ReadTimeMinutes min read
+                            @if (post.Notebook != null)
+                            {
+                                <span>&middot; @post.Notebook.Name</span>
+                            }
                             @if (post.UpdatedAt != default)
                             {
-                                <span>· Updated @post.UpdatedAt.ToString("MMM d, yyyy")</span>
+                                <span>&middot; Updated @post.UpdatedAt.ToString("MMM d, yyyy")</span>
                             }
                         </span>
                     </div>
@@ -87,11 +203,25 @@
                             <a asp-action="Edit" asp-route-id="@post.Id" class="story-menu-item" role="menuitem">
                                 Edit story
                             </a>
+                            @if (selectedNotebook != null)
+                            {
+                                <form asp-action="RemoveBlogFromNotebook" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="postId" value="@post.Id" />
+                                    <input type="hidden" name="notebookId" value="@selectedNotebook.Id" />
+                                    <button type="submit" class="story-menu-item" role="menuitem">
+                                        Remove from notebook
+                                    </button>
+                                </form>
+                            }
                             <a asp-action="Details" asp-route-slug="@post.Slug" class="story-menu-item" role="menuitem">
                                 View story
                             </a>
                             <div class="story-menu-divider"></div>
-                            <form asp-action="Delete" asp-route-id="@post.Id" method="post"
+                            <form asp-action="Delete"
+                                  asp-route-id="@post.Id"
+                                  asp-route-returnNotebookId="@selectedNotebookId"
+                                  method="post"
                                   onsubmit="return confirm('Delete this story? This cannot be undone.');">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="story-menu-item story-menu-delete" role="menuitem">
@@ -115,6 +245,15 @@ function copyStoryLink(btn) {
         btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
         setTimeout(() => btn.innerHTML = orig, 2000);
     });
+}
+
+function confirmNotebookDelete(form) {
+    const deleteBlogs = form.querySelector('input[name="deleteBlogs"]')?.checked;
+    if (deleteBlogs) {
+        return confirm('Delete this notebook and every story inside it? This cannot be undone.');
+    }
+
+    return confirm('Delete only this notebook? The stories inside it will stay in your Stories list.');
 }
 </script>
 }

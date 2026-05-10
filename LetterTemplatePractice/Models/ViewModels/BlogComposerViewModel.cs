@@ -23,6 +23,8 @@ namespace LetterTemplatePractice.Models.ViewModels
         [StringLength(200)]
         public string? Topic { get; set; }
 
+        public int? NotebookId { get; set; }
+
         [Required]
         public string ContentHtml { get; set; } = string.Empty;
 

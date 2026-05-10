@@ -3,6 +3,8 @@
     ViewData["Title"]    = Model.Id.HasValue ? "Edit Story" : "Write Story";
     ViewData["BodyClass"] = "editor-page";
     var isEditing = Model.Id.HasValue;
+    var notebooks = ViewBag.NotebookOptions as IReadOnlyList<LetterTemplatePractice.Models.Notebook>
+                    ?? new List<LetterTemplatePractice.Models.Notebook>();
 }
 
 <div class="editor-shell-wrap">
@@ -54,6 +56,16 @@
                     <div class="editor-meta-field">
                         <label class="editor-meta-label">Topic</label>
                         <input asp-for="Topic" id="Topic" class="editor-meta-input" placeholder="e.g. Design, Engineering" />
+                    </div>
+                    <div class="editor-meta-field">
+                        <label class="editor-meta-label">Notebook</label>
+                        <select asp-for="NotebookId" class="editor-meta-input">
+                            <option value="">No notebook</option>
+                            @foreach (var notebook in notebooks)
+                            {
+                                <option value="@notebook.Id">@notebook.Name</option>
+                            }
+                        </select>
                     </div>
                     <div class="editor-meta-field">
                         <label class="editor-meta-label">Cover Image URL</label>

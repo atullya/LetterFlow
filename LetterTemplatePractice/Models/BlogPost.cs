@@ -9,6 +9,9 @@ namespace LetterTemplatePractice.Models
         public int AuthorId { get; set; }
         public virtual ApplicationUser? Author { get; set; }
 
+        public int? NotebookId { get; set; }
+        public virtual Notebook? Notebook { get; set; }
+
         [Required]
         [StringLength(160)]
         public string Title { get; set; } = string.Empty;

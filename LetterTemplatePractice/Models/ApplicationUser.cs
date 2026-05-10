@@ -38,6 +38,7 @@ namespace LetterTemplatePractice.Models
         public DateTime? LastLoginAt { get; set; }
 
         public virtual ICollection<BlogPost> BlogPosts { get; set; } = new List<BlogPost>();
+        public virtual ICollection<Notebook> Notebooks { get; set; } = new List<Notebook>();
         public virtual ICollection<BlogComment> BlogComments { get; set; } = new List<BlogComment>();
         public virtual ICollection<BlogLike> BlogLikes { get; set; } = new List<BlogLike>();
 

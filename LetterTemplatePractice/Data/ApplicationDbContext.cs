@@ -9,6 +9,7 @@ namespace LetterTemplatePractice.Data
 
         public DbSet<ApplicationUser> Users { get; set; }
         public DbSet<BlogPost>        BlogPosts { get; set; }
+        public DbSet<Notebook>        Notebooks { get; set; }
         public DbSet<BlogComment>     BlogComments { get; set; }
         public DbSet<BlogLike>        BlogLikes { get; set; }
         public DbSet<Follow>          Follows { get; set; }
@@ -49,6 +50,22 @@ namespace LetterTemplatePractice.Data
                 e.HasOne(p => p.Author)
                     .WithMany(u => u.BlogPosts)
                     .HasForeignKey(p => p.AuthorId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(p => p.Notebook)
+                    .WithMany(n => n.Blogs)
+                    .HasForeignKey(p => p.NotebookId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<Notebook>(e =>
+            {
+                e.HasKey(n => n.Id);
+                e.Property(n => n.Name).IsRequired().HasMaxLength(120);
+                e.Property(n => n.Description).HasMaxLength(300);
+                e.HasIndex(n => new { n.UserId, n.Name }).IsUnique();
+                e.HasOne(n => n.User)
+                    .WithMany(u => u.Notebooks)
+                    .HasForeignKey(n => n.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
