@@ -706,6 +706,50 @@ textarea { resize: vertical; }
   color: #c0392b;
 }
 
+/* ── Code block copy button ───────────────────────────────────────────────── */
+.code-block-wrap {
+  position: relative;
+  margin: 0 0 22px;
+}
+
+.code-block-wrap pre {
+  margin: 0 !important;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.code-block-wrap:hover .code-copy-btn {
+  opacity: 1;
+}
+
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.code-copy-btn.copied {
+  opacity: 1;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+}
+
 .author-card, .reader-secondary-block {
   margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--line);
 }

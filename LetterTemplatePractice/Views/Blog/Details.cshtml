@@ -208,5 +208,32 @@
                 this.querySelector("span").textContent = "Copy link";
             }, 1800);
         });
+
+        // ── Code block copy buttons ───────────────────────────────────────────
+        document.querySelectorAll('.article-body pre').forEach(pre => {
+            // wrap in a relative container
+            const wrapper = document.createElement('div');
+            wrapper.className = 'code-block-wrap';
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+
+            const btn = document.createElement('button');
+            btn.className   = 'code-copy-btn';
+            btn.type        = 'button';
+            btn.title       = 'Copy code';
+            btn.innerHTML   = '<i class="far fa-copy"></i>';
+            wrapper.appendChild(btn);
+
+            btn.addEventListener('click', async () => {
+                const code = pre.querySelector('code')?.innerText ?? pre.innerText;
+                await navigator.clipboard.writeText(code);
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="far fa-copy"></i>';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        });
     </script>
 }
