@@ -524,7 +524,7 @@ textarea { resize: vertical; }
 
 .topic-pill {
   display: inline-flex; align-items: center;
-  height: 32px; padding: 0 14px;
+  min-height: 32px; padding: 6px 14px;
   border-radius: 99px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -532,6 +532,9 @@ textarea { resize: vertical; }
   font-size: 0.82rem;
   text-decoration: none;
   transition: border-color var(--ease);
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 .topic-pill:hover { border-color: var(--text); text-decoration: none; }
