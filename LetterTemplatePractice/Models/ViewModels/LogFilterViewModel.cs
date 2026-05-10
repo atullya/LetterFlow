@@ -7,6 +7,7 @@ namespace LetterTemplatePractice.Models.ViewModels
         public DateTime? Date { get; set; }
         public AppLogLevel? Level { get; set; }
         public string? Search { get; set; }
+        public string? ErrorMessage { get; set; }
         public bool HasSubmitted { get; set; }
 
         public IReadOnlyList<LogEntry> Logs { get; set; } = [];

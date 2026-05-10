@@ -21,10 +21,13 @@ namespace Logging
         private readonly ConcurrentQueue<LogEntry>                _buffer = new();
         private readonly Serilog.ILogger                          _serilog;
         private readonly ILogger<AppLogger>                       _msLogger;
+        private readonly string                                   _logDirectory;
 
         public AppLogger(ILogger<AppLogger> msLogger)
         {
             _msLogger = msLogger;
+            _logDirectory = ResolveLogDirectory();
+            Directory.CreateDirectory(_logDirectory);
 
             _serilog = new LoggerConfiguration()
                 .Enrich.FromLogContext()
@@ -33,7 +36,7 @@ namespace Logging
                 .MinimumLevel.Debug()
                 .WriteTo.File(
                     formatter: new JsonFormatter(),
-                    path: Path.Combine(Path.GetTempPath(), "letterflow-logs", "app-.json"),
+                    path: Path.Combine(_logDirectory, "app-.json"),
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 30,
                     shared: true)
@@ -172,7 +175,7 @@ namespace Logging
             try
             {
                 var today    = DateTime.Now.ToString("yyyyMMdd");
-                var filePath = Path.Combine(Path.GetTempPath(), "letterflow-logs", $"app-{today}.json");
+                var filePath = Path.Combine(_logDirectory, $"app-{today}.json");
 
                 if (!File.Exists(filePath)) return;
 
@@ -218,6 +221,20 @@ namespace Logging
                     _buffer.TryDequeue(out _);
             }
             catch { /* if file is locked or missing, just start fresh */ }
+        }
+
+        private static string ResolveLogDirectory()
+        {
+            var configured = Environment.GetEnvironmentVariable("LETTERFLOW_LOG_DIR");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                return configured;
+            }
+
+            var appLogs = Path.Combine(AppContext.BaseDirectory, "Logs");
+            return Directory.Exists(appLogs)
+                ? appLogs
+                : Path.Combine(Path.GetTempPath(), "letterflow-logs");
         }
     }
 }

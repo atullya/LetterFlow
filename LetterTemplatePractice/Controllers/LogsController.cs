@@ -15,10 +15,16 @@ namespace LetterTemplatePractice.Controllers
         [HttpGet]
         public IActionResult Index()
         {
-            var filter = new LogFilterViewModel
+            var filter = new LogFilterViewModel();
+
+            try
             {
-                AvailableDates = _logger.GetAvailableDates()
-            };
+                filter.AvailableDates = _logger.GetAvailableDates();
+            }
+            catch (Exception ex)
+            {
+                filter.ErrorMessage = $"Unable to load log dates: {ex.Message}";
+            }
 
             ViewData["Title"] = "Application Logs";
             return View(filter);
@@ -28,13 +34,19 @@ namespace LetterTemplatePractice.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult Index(LogFilterViewModel filter)
         {
-            var logs = _logger
-                .GetFilteredLogs(filter.Date, filter.Level, filter.Search)
-                .ToList();
-
             filter.HasSubmitted = true;
-            filter.Logs = logs;
-            filter.AvailableDates = _logger.GetAvailableDates();
+
+            try
+            {
+                filter.Logs = _logger
+                    .GetFilteredLogs(filter.Date, filter.Level, filter.Search)
+                    .ToList();
+                filter.AvailableDates = _logger.GetAvailableDates();
+            }
+            catch (Exception ex)
+            {
+                filter.ErrorMessage = $"Unable to load logs: {ex.Message}";
+            }
 
             ViewData["Title"] = "Application Logs";
             return View(filter);
