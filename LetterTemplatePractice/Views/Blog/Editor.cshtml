@@ -16,6 +16,7 @@
             <span>My Stories</span>
         </a>
         <span class="editor-topbar-title">@(isEditing ? "Editing story" : "New story")</span>
+        <span class="editor-draft-indicator" id="draftIndicator"></span>
         <div class="editor-topbar-actions">
             <button type="submit" form="editorForm" name="SubmitAction" value="draft" class="btn btn-secondary btn-sm">
                 <i class="fas fa-floppy-disk"></i> Save Draft
@@ -198,6 +199,16 @@
     font-size: 0.82rem; color: var(--muted);
     flex: 1; text-align: center;
 }
+
+.editor-draft-indicator {
+    font-size: 0.75rem;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity 400ms ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.editor-draft-indicator.visible { opacity: 1; }
 
 .editor-topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
@@ -514,6 +525,62 @@
 
 <script src="https://cdn.tiny.cloud/1/81o0jisqpcft2bdbsj44ru6xu3vaw5nab39x3z4hl5h1lrrn/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
+    // ── Autosave key — unique per post (new vs editing) ───────────────────────
+    const DRAFT_KEY = 'lf_draft_@(Model.Id.HasValue ? Model.Id.Value.ToString() : "new")';
+
+    function saveDraft() {
+        const editor = tinymce.get('storyEditor');
+        const draft = {
+            title:        document.getElementById('Title')?.value        ?? '',
+            subtitle:     document.getElementById('Subtitle')?.value     ?? '',
+            topic:        document.getElementById('Topic')?.value        ?? '',
+            notebookId:   document.getElementById('NotebookId')?.value   ?? '',
+            coverImageUrl:document.getElementById('CoverImageUrl')?.value?? '',
+            excerpt:      document.getElementById('Excerpt')?.value      ?? '',
+            content:      editor ? editor.getContent() : '',
+            savedAt:      Date.now()
+        };
+        try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }
+        catch { /* storage full — ignore */ }
+        showDraftIndicator();
+    }
+
+    function clearDraft() {
+        localStorage.removeItem(DRAFT_KEY);
+    }
+
+    function showDraftIndicator() {
+        const el = document.getElementById('draftIndicator');
+        if (!el) return;
+        el.textContent = 'Draft saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        el.classList.add('visible');
+    }
+
+    function restoreDraft() {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return;
+        try {
+            const draft = JSON.parse(raw);
+            // Only restore if the draft is less than 7 days old
+            if (Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
+                clearDraft(); return;
+            }
+
+            const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+            set('Title',         draft.title);
+            set('Subtitle',      draft.subtitle);
+            set('Topic',         draft.topic);
+            set('NotebookId',    draft.notebookId);
+            set('CoverImageUrl', draft.coverImageUrl);
+            set('Excerpt',       draft.excerpt);
+
+            // TinyMCE content is restored in the setup callback after editor is ready
+            window._draftContent = draft.content;
+
+            showDraftIndicator();
+        } catch { clearDraft(); }
+    }
+
     // ── TinyMCE init ──────────────────────────────────────────────────────────
     tinymce.init({
         selector: "#storyEditor",
@@ -539,8 +606,38 @@
         placeholder: "Tell your story…",
         toolbar_location: "top",
         toolbar_sticky: true,
-        toolbar_sticky_offset: 104
+        toolbar_sticky_offset: 104,
+        setup: function (editor) {
+            // Restore draft content once editor is ready
+            editor.on('init', function () {
+                if (window._draftContent) {
+                    editor.setContent(window._draftContent);
+                    window._draftContent = null;
+                }
+                // Save on every content change (debounced)
+                let saveTimer;
+                editor.on('input keyup change NodeChange', function () {
+                    clearTimeout(saveTimer);
+                    saveTimer = setTimeout(saveDraft, 1500);
+                });
+            });
+        }
     });
+
+    // ── Restore draft on page load ────────────────────────────────────────────
+    restoreDraft();
+
+    // ── Autosave every 10 seconds ─────────────────────────────────────────────
+    setInterval(saveDraft, 10_000);
+
+    // ── Save on plain field changes ───────────────────────────────────────────
+    ['Title','Subtitle','Topic','NotebookId','CoverImageUrl','Excerpt'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', saveDraft);
+        document.getElementById(id)?.addEventListener('change', saveDraft);
+    });
+
+    // ── Clear draft when form is submitted ────────────────────────────────────
+    document.getElementById('editorForm')?.addEventListener('submit', clearDraft);
 
     // ── AI helpers ────────────────────────────────────────────────────────────
     const antiForgeryToken = () =>
