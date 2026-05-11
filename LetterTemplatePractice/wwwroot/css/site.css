@@ -607,7 +607,7 @@ textarea { resize: vertical; }
 .workspace-panel, .card-body, .preview-pane, .preview-stage { padding: 24px; }
 
 /* ── Article ──────────────────────────────────────────────────────────────── */
-.article-shell { max-width: 740px; margin: 0 auto; padding: 40px 24px 60px; }
+.article-shell { max-width: 970px; margin: 0 auto; padding: 40px 32px 60px; }
 
 .article-title {
   margin: 10px 0 0;
