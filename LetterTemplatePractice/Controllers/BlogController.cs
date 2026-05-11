@@ -31,12 +31,9 @@ namespace LetterTemplatePractice.Controllers
         public async Task<IActionResult> Explore(string? topic = null, string? search = null)
         {
             var query = _blogService.PublishedPostsQuery();
-            _logger.LogError("BlogController", "Testing error log in Explore action.");
 
             if (!string.IsNullOrWhiteSpace(topic))
-            {
                 query = query.Where(post => post.Topic == topic);
-            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -44,11 +41,11 @@ namespace LetterTemplatePractice.Controllers
                 query = query.Where(post =>
                     post.Title.Contains(term) ||
                     (post.Subtitle != null && post.Subtitle.Contains(term)) ||
-                    (post.Excerpt != null && post.Excerpt.Contains(term)) ||
-                    (post.Topic != null && post.Topic.Contains(term)));
+                    (post.Excerpt  != null && post.Excerpt.Contains(term))  ||
+                    (post.Topic    != null && post.Topic.Contains(term)));
             }
 
-            ViewBag.Topic = topic;
+            ViewBag.Topic  = topic;
             ViewBag.Search = search;
             ViewBag.Topics = await _context.BlogPosts
                 .AsNoTracking()
@@ -58,7 +55,13 @@ namespace LetterTemplatePractice.Controllers
                 .OrderBy(topicName => topicName)
                 .ToListAsync();
 
-            return View(await query.ToListAsync());
+            var posts = await query.ToListAsync();
+
+            // AJAX partial — return only the story list HTML
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                return PartialView("_ExploreResults", posts);
+
+            return View(posts);
         }
 
         [AllowAnonymous]

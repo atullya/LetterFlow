@@ -1,0 +1,16 @@
+@model IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
+@if (!Model.Any())
+{
+    <div class="empty-state">
+        <i class="fas fa-book-open-reader"></i>
+        <h5>No stories matched</h5>
+        <p>Try a different topic or a broader search term.</p>
+    </div>
+}
+else
+{
+    @foreach (var post in Model)
+    {
+        await Html.RenderPartialAsync("_StoryCard", post);
+    }
+}

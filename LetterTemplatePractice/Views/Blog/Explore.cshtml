@@ -1,7 +1,8 @@
 @model IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
 @{
     ViewData["Title"] = "Explore";
-    var topic  = ViewBag.Topic as string;
+    ViewData["HideNavSearch"] = true;   // suppress the duplicate navbar search bar
+    var topic  = ViewBag.Topic  as string;
     var search = ViewBag.Search as string;
     var topics = ViewBag.Topics as IReadOnlyList<string> ?? [];
 }
@@ -9,20 +10,22 @@
 <div class="feed-layout">
     <main class="feed-main">
         <section class="feed-filter-bar">
-            <form method="get" asp-action="Explore" class="feed-filter-form">
-                <input type="text" name="search" class="form-control" value="@search" placeholder="Search stories…" />
-                <select name="topic" class="form-select">
+            <form method="get" asp-action="Explore" class="feed-filter-form" id="exploreForm">
+                <div class="explore-search-wrap">
+                    <i class="fas fa-search explore-search-icon"></i>
+                    <input type="text" name="search" id="searchInput" class="form-control explore-search-input"
+                           value="@search" placeholder="Search stories…" autocomplete="off" />
+                    <span class="explore-search-spinner" id="searchSpinner" style="display:none;">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </span>
+                </div>
+                <select name="topic" id="topicSelect" class="form-select">
                     <option value="">All topics</option>
                     @foreach (var t in topics)
                     {
-                        if (string.Equals(topic, t, StringComparison.OrdinalIgnoreCase))
-                        {
-                            <option value="@t" selected>@t</option>
-                        }
-                        else
-                        {
-                            <option value="@t">@t</option>
-                        }
+                        <option value="@t" selected="@(string.Equals(topic, t, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                            @t
+                        </option>
                     }
                 </select>
                 <button type="submit" class="btn btn-primary">Apply</button>
@@ -30,22 +33,8 @@
             </form>
         </section>
 
-        <section class="story-list">
-            @if (!Model.Any())
-            {
-                <div class="empty-state">
-                    <i class="fas fa-book-open-reader"></i>
-                    <h5>No stories matched</h5>
-                    <p>Try a different topic or a broader search term.</p>
-                </div>
-            }
-            else
-            {
-                @foreach (var post in Model)
-                {
-                    await Html.RenderPartialAsync("_StoryCard", post);
-                }
-            }
+        <section class="story-list" id="storyList">
+            @await Html.PartialAsync("_ExploreResults", Model)
         </section>
     </main>
 
@@ -57,7 +46,8 @@
                 <div class="topic-pills">
                     @foreach (var t in topics)
                     {
-                        <a asp-action="Explore" asp-route-topic="@t" class="topic-pill @(string.Equals(topic, t, StringComparison.OrdinalIgnoreCase) ? "topic-pill-active" : "")">@t</a>
+                        <a asp-action="Explore" asp-route-topic="@t"
+                           class="topic-pill @(string.Equals(topic, t, StringComparison.OrdinalIgnoreCase) ? "topic-pill-active" : "")">@t</a>
                     }
                 </div>
             </section>
@@ -82,3 +72,91 @@
         }
     </aside>
 </div>
+
+@section Scripts {
+<style>
+.explore-search-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.explore-search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.explore-search-input {
+    padding-left: 34px !important;
+    padding-right: 36px !important;
+}
+
+.explore-search-spinner {
+    position: absolute;
+    right: 12px;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+</style>
+
+<script>
+(function () {
+    const searchInput = document.getElementById('searchInput');
+    const topicSelect = document.getElementById('topicSelect');
+    const storyList   = document.getElementById('storyList');
+    const spinner     = document.getElementById('searchSpinner');
+    if (!searchInput || !storyList) return;
+
+    let debounceTimer;
+    let currentController; // AbortController for in-flight requests
+
+    function buildUrl() {
+        const params = new URLSearchParams();
+        const s = searchInput.value.trim();
+        const t = topicSelect?.value ?? '';
+        if (s) params.set('search', s);
+        if (t) params.set('topic', t);
+        return '/Blog/Explore?' + params.toString();
+    }
+
+    async function fetchResults() {
+        // Cancel any previous in-flight request
+        if (currentController) currentController.abort();
+        currentController = new AbortController();
+
+        spinner.style.display = '';
+
+        try {
+            const res = await fetch(buildUrl(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: currentController.signal
+            });
+            if (!res.ok) return;
+            const html = await res.text();
+            storyList.innerHTML = html;
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error(e);
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+
+    // Debounced input — fires 350ms after user stops typing, focus never leaves the field
+    searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fetchResults, 350);
+    });
+
+    // Topic dropdown — instant
+    topicSelect?.addEventListener('change', function () {
+        clearTimeout(debounceTimer);
+        fetchResults();
+    });
+})();
+</script>
+}

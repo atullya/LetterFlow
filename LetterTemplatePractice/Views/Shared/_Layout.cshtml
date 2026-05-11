@@ -121,13 +121,7 @@
                 </a>
             </div>
 
-            <!-- Search bar -->
-            <form class="topbar-search" asp-controller="Blog" asp-action="Explore" method="get">
-                <i class="fas fa-search topbar-search-icon"></i>
-                <input type="search" name="q" class="topbar-search-input"
-                       placeholder="Search" autocomplete="off"
-                       value="@(Context.Request.Query["q"].ToString())" />
-            </form>
+            <!-- Search bar removed — each page has its own contextual search -->
 
             <div class="topbar-actions">
                 @if (User.Identity?.IsAuthenticated == true)

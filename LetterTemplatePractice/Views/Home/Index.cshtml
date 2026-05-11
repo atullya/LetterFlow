@@ -3,6 +3,7 @@
     ViewData["Title"] = "Home";
     var activeTab = Context.Request.Query["tab"].ToString();
     if (string.IsNullOrEmpty(activeTab)) activeTab = "foryou";
+    var search = Context.Request.Query["search"].ToString();
 }
 
 @if (TempData["SuccessMessage"] != null)
@@ -15,13 +16,27 @@
 <div class="feed-layout">
     <main class="feed-main">
 
+        <!-- Search bar -->
+        <section class="feed-filter-bar">
+            <form method="get" asp-controller="Blog" asp-action="Explore" class="feed-filter-form" id="homeSearchForm">
+                <div class="explore-search-wrap">
+                    <i class="fas fa-search explore-search-icon"></i>
+                    <input type="text" name="search" id="homeSearchInput" class="form-control explore-search-input"
+                           value="@search" placeholder="Search stories…" autocomplete="off" />
+                    <span class="explore-search-spinner" id="homeSearchSpinner" style="display:none;">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </span>
+                </div>
+            </form>
+        </section>
+
         <!-- For you / Featured tabs -->
-        <div class="feed-tabs">
-            <a href="?tab=foryou"    class="feed-tab @(activeTab == "foryou"    ? "active" : "")">For you</a>
-            <a href="?tab=featured"  class="feed-tab @(activeTab == "featured"  ? "active" : "")">Featured</a>
+        <div class="feed-tabs" id="homeTabs">
+            <a href="?tab=foryou"   class="feed-tab @(activeTab == "foryou"   ? "active" : "")">For you</a>
+            <a href="?tab=featured" class="feed-tab @(activeTab == "featured" ? "active" : "")">Featured</a>
         </div>
 
-        <section class="story-list">
+        <section class="story-list" id="homeStoryList">
             @{
                 var posts = activeTab == "featured"
                     ? Model.FeaturedPosts
@@ -90,3 +105,88 @@
         </section>
     </aside>
 </div>
+
+@section Scripts {
+<style>
+.explore-search-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+.explore-search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    pointer-events: none;
+    z-index: 1;
+}
+.explore-search-input {
+    padding-left: 34px !important;
+    padding-right: 36px !important;
+}
+.explore-search-spinner {
+    position: absolute;
+    right: 12px;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+/* Hide tabs while searching */
+#homeTabs.searching { display: none; }
+</style>
+
+<script>
+(function () {
+    const input     = document.getElementById('homeSearchInput');
+    const storyList = document.getElementById('homeStoryList');
+    const spinner   = document.getElementById('homeSearchSpinner');
+    const tabs      = document.getElementById('homeTabs');
+    if (!input || !storyList) return;
+
+    let debounceTimer;
+    let currentController;
+
+    async function fetchResults(term) {
+        if (currentController) currentController.abort();
+        currentController = new AbortController();
+        spinner.style.display = '';
+
+        try {
+            const url = '/Blog/Explore?' + new URLSearchParams({ search: term });
+            const res = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: currentController.signal
+            });
+            if (!res.ok) return;
+            storyList.innerHTML = await res.text();
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error(e);
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+
+    function restoreHome() {
+        // Reload the page to restore the original For You / Featured feed
+        window.location.href = '/';
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        const term = this.value.trim();
+
+        if (!term) {
+            // Empty — restore original feed without reload by showing cached content
+            tabs.classList.remove('searching');
+            debounceTimer = setTimeout(restoreHome, 600);
+            return;
+        }
+
+        tabs.classList.add('searching');
+        debounceTimer = setTimeout(() => fetchResults(term), 350);
+    });
+})();
+</script>
+}
+
