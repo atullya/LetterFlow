@@ -1,0 +1,288 @@
+@{
+    ViewData["Title"] = "AI Dashboard";
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var succeeded24h = (int)ViewBag.Succeeded24h;
+    var failed24h = (int)ViewBag.Failed24h;
+}
+
+<div class="ai-dash-shell">
+    <div class="ai-dash-header">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="ai-dash-title">AI Dashboard</h1>
+            <p class="ai-dash-subtitle">Monitor Gemini job queue, errors, and system health.</p>
+        </div>
+    </div>
+
+    <!-- Status tile counts -->
+    <div class="ai-tiles-row" id="tileRow">
+        <div class="ai-tile tile-pending">
+            <span class="ai-tile-count" id="tPending">@counts.GetValueOrDefault("Pending")</span>
+            <span class="ai-tile-label">Pending</span>
+        </div>
+        <div class="ai-tile tile-progress">
+            <span class="ai-tile-count" id="tInProgress">@counts.GetValueOrDefault("InProgress")</span>
+            <span class="ai-tile-label">In Progress</span>
+        </div>
+        <div class="ai-tile tile-ok">
+            <span class="ai-tile-count" id="tSucceeded">@succeeded24h</span>
+            <span class="ai-tile-label">Succeeded (24h)</span>
+        </div>
+        <div class="ai-tile tile-fail">
+            <span class="ai-tile-count" id="tFailed">@failed24h</span>
+            <span class="ai-tile-label">Failed (24h)</span>
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="ai-stats-row" id="statsRow">
+        <div class="ai-stat">
+            <span class="ai-stat-value" id="sAvgAttempts">--</span>
+            <span class="ai-stat-label">Avg Attempts</span>
+        </div>
+        <div class="ai-stat-divider"></div>
+        <div class="ai-stat">
+            <span class="ai-stat-value" id="sAvgLatency">--</span>
+            <span class="ai-stat-label">Avg Latency</span>
+        </div>
+    </div>
+
+    <!-- Volume chart placeholder -->
+    <div class="ai-chart-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">Job Volume (Last 24h)</span>
+        </div>
+        <div class="ai-chart-body" id="volumeChart">
+            <canvas id="volumeCanvas" height="160"></canvas>
+        </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="ai-links-row">
+        <a asp-action="Jobs" class="ai-link-card">
+            <i class="fas fa-list"></i>
+            <span>Recent Jobs</span>
+        </a>
+        <a asp-action="Errors" class="ai-link-card">
+            <i class="fas fa-bug"></i>
+            <span>Error Feed</span>
+        </a>
+        <a href="/health" class="ai-link-card" target="_blank">
+            <i class="fas fa-heartbeat"></i>
+            <span>Health Check</span>
+        </a>
+    </div>
+
+    <!-- Health section -->
+    <div class="ai-health-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">System Health</span>
+            <button class="btn btn-sm btn-secondary" id="btnHealthCheck">
+                <i class="fas fa-sync-alt"></i> Check
+            </button>
+        </div>
+        <div class="ai-health-body" id="healthBody">
+            <p class="ai-health-pending">Click "Check" to probe system health.</p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+/* ── AI Dashboard shell ─────────────────────────────────── */
+.ai-dash-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.ai-dash-header { padding-bottom: 8px; }
+.ai-dash-title  { margin: 4px 0 6px; font-size: 1.75rem; font-weight: 800; line-height: 1.15; }
+.ai-dash-subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+/* Tiles */
+.ai-tiles-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.ai-tile {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    transition: border-color 160ms ease;
+}
+
+.ai-tile:hover { border-color: var(--text); }
+
+.ai-tile-count {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.ai-tile-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.tile-pending .ai-tile-count { color: #b45309; }
+.tile-progress .ai-tile-count { color: #2563eb; }
+.tile-ok .ai-tile-count { color: #16a34a; }
+.tile-fail .ai-tile-count { color: #dc2626; }
+
+/* Stats row */
+.ai-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 18px 28px;
+}
+
+.ai-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 28px 0 0;
+}
+
+.ai-stat:first-child { padding-left: 0; }
+
+.ai-stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+}
+
+.ai-stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.ai-stat-divider {
+    width: 1px;
+    height: 36px;
+    background: var(--line);
+    margin-right: 28px;
+    flex-shrink: 0;
+}
+
+/* Chart card */
+.ai-chart-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.ai-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.ai-chart-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.ai-chart-body {
+    padding: 20px;
+    min-height: 180px;
+}
+
+/* Links row */
+.ai-links-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.ai-link-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    text-decoration: none;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: border-color 160ms ease, background 160ms ease;
+}
+
+.ai-link-card:hover { border-color: var(--text); background: var(--surface); }
+.ai-link-card i { font-size: 1.1rem; color: var(--muted); }
+
+/* Health card */
+.ai-health-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.ai-health-body { padding: 20px; }
+
+.ai-health-pending { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+.ai-health-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 0.85rem;
+}
+
+.ai-health-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ai-health-dot.ok { background: #16a34a; }
+.ai-health-dot.fail { background: #dc2626; }
+.ai-health-dot.warn { background: #b45309; }
+
+/* Bar chart via canvas */
+#volumeCanvas { width: 100%; }
+
+/* Responsive */
+@@media (max-width: 768px) {
+    .ai-dash-shell { padding: 28px 16px 60px; }
+    .ai-tiles-row { grid-template-columns: repeat(2, 1fr); }
+    .ai-links-row { grid-template-columns: 1fr; }
+    .ai-stats-row { flex-wrap: wrap; gap: 16px; padding: 16px 20px; }
+    .ai-stat-divider { display: none; }
+    .ai-stat { padding: 0; }
+}
+</style>
+
+<script src="~/js/admin-ai.js"></script>
+}

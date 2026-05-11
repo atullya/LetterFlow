@@ -1,0 +1,225 @@
+@model List<LetterTemplatePractice.Models.AiJob>
+@{
+    ViewData["Title"] = "AI Jobs";
+}
+
+<div class="ai-dash-shell">
+    <div class="ai-dash-header">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="ai-dash-title">Recent AI Jobs</h1>
+            <p class="ai-dash-subtitle">Last 100 jobs across all users. <a asp-action="Index">&larr; Dashboard</a></p>
+        </div>
+    </div>
+
+    <div class="ai-table-card">
+        <div class="ai-table-toolbar">
+            <span class="ai-table-title">
+                Jobs
+                <span class="ai-table-count">@Model.Count result@(Model.Count == 1 ? "" : "s")</span>
+            </span>
+            <div class="ai-live-search-wrap">
+                <i class="fas fa-search ai-live-search-icon"></i>
+                <input type="text" id="liveSearch" class="ai-live-search" placeholder="Filter rows…" />
+            </div>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h5>No jobs yet</h5>
+                <p>AI jobs will appear here once enqueued.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="ai-table" id="jobsTable">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Owner</th>
+                            <th>Status</th>
+                            <th>Attempts</th>
+                            <th>Created</th>
+                            <th>Completed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobsBody">
+                        @foreach (var job in Model)
+                        {
+                            var statusClass = job.Status switch
+                            {
+                                "Pending"    => "badge-warn",
+                                "InProgress" => "badge-info",
+                                "Succeeded"  => "badge-ok",
+                                "Failed"     => "badge-error",
+                                "Cancelled"  => "badge-muted",
+                                _            => ""
+                            };
+
+                            <tr class="ai-job-row" data-text="@(job.Type + " " + (job.Owner?.Username ?? "") + " " + job.Status + " " + (job.Error ?? ""))">
+                                <td><strong>@job.Type</strong></td>
+                                <td class="cell-muted">@(job.Owner?.Username ?? "—")</td>
+                                <td><span class="log-badge @statusClass">@job.Status</span></td>
+                                <td>@job.Attempts / @job.MaxAttempts</td>
+                                <td class="cell-mono">@job.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="cell-mono">@(job.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                                <td>
+                                    <button class="btn btn-xs btn-secondary js-view-detail"
+                                            data-id="@job.Id"
+                                            data-input="@job.Input"
+                                            data-result="@(job.Result ?? "")"
+                                            data-error="@(job.Error ?? "")"
+                                            title="View details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    @if (job.Status == "Pending")
+                                    {
+                                        <button class="btn btn-xs btn-danger js-cancel-job" data-id="@job.Id" title="Cancel">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    }
+                                    @if (job.Status == "Failed")
+                                    {
+                                        <button class="btn btn-xs btn-primary js-requeue-job" data-id="@job.Id" title="Requeue">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="ai-table-footer">
+                Showing <strong>@Model.Count</strong> row@(Model.Count == 1 ? "" : "s")
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Job Detail</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Input</h6>
+                <pre class="ai-pre" id="modalInput"></pre>
+                <h6 class="mt-3">Result</h6>
+                <pre class="ai-pre" id="modalResult"></pre>
+                <h6 class="mt-3">Error</h6>
+                <pre class="ai-pre ai-pre-error" id="modalError"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+.ai-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.ai-table-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-table-count {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.ai-live-search-wrap { position: relative; width: 220px; }
+.ai-live-search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 0.75rem; pointer-events: none;
+}
+
+.ai-live-search {
+    width: 100%; height: 36px; padding: 0 12px 0 30px;
+    border: 1px solid var(--line); border-radius: 99px; background: var(--surface);
+    font-size: 0.82rem; font-family: inherit; color: var(--text);
+    transition: border-color 160ms ease;
+}
+
+.ai-live-search:focus { outline: none; border-color: var(--text); background: #fff; }
+
+.ai-table-footer {
+    padding: 12px 20px; font-size: 0.8rem; color: var(--muted);
+    border-top: 1px solid var(--line);
+}
+
+.ai-pre {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; font-size: 0.8rem; max-height: 200px; overflow: auto;
+    white-space: pre-wrap; word-break: break-all;
+}
+.ai-pre-error { color: #dc2626; }
+
+.ai-job-row.hidden { display: none; }
+
+.empty-state {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 48px 0; color: var(--muted); text-align: center;
+}
+.empty-state i { font-size: 1.4rem; }
+</style>
+
+<script>
+$(function () {
+    // Live filter
+    $('#liveSearch').on('input', function () {
+        var term = $(this).val().trim().toLowerCase();
+        $('#jobsBody tr.ai-job-row').each(function () {
+            var match = !term || ($(this).data('text') || '').toLowerCase().includes(term);
+            $(this).toggleClass('hidden', !match);
+        });
+    });
+
+    // Detail modal
+    $(document).on('click', '.js-view-detail', function () {
+        $('#modalInput').text($(this).data('input') || '(empty)');
+        $('#modalResult').text($(this).data('result') || '(none)');
+        $('#modalError').text($(this).data('error') || '(none)');
+        new bootstrap.Modal('#detailModal').show();
+    });
+
+    // Cancel job
+    $(document).on('click', '.js-cancel-job', function () {
+        var id = $(this).data('id');
+        if (!confirm('Cancel this job?')) return;
+        $.post('/api/ai/jobs/' + id + '/cancel').done(function () {
+            location.reload();
+        }).fail(function () { alert('Failed to cancel job.'); });
+    });
+
+    // Requeue job
+    $(document).on('click', '.js-requeue-job', function () {
+        var id = $(this).data('id');
+        if (!confirm('Requeue this failed job?')) return;
+        $.post('/api/ai/jobs/' + id + '/requeue').done(function () {
+            location.reload();
+        }).fail(function () { alert('Failed to requeue job.'); });
+    });
+});
+</script>
+}

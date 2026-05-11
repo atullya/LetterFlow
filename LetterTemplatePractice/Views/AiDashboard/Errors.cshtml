@@ -1,0 +1,82 @@
+@model List<LetterTemplatePractice.Models.AiJob>
+@{
+    ViewData["Title"] = "AI Error Feed";
+    var logLines = (List<string>)ViewBag.LogLines;
+}
+
+<div class="ai-dash-shell">
+
+    <div class="ai-dash-header">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="ai-dash-title">AI Error Feed</h1>
+            <p class="ai-dash-subtitle">
+                Recent failed jobs and Serilog entries.
+                <a asp-action="Index">&larr; Dashboard</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Failed jobs table -->
+    <div class="ai-table-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">Failed Jobs</span>
+            <span class="ai-chart-badge">@Model.Count total</span>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="empty-state" style="padding: 48px 24px;">
+                <i class="fas fa-check-circle" style="font-size:2rem; color:#16a34a; margin-bottom:12px;"></i>
+                <h5>No errors</h5>
+                <p>All recent jobs completed successfully.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="ai-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Owner</th>
+                            <th>Attempts</th>
+                            <th>Error</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var job in Model)
+                        {
+                            <tr>
+                                <td><strong style="color:#dc2626;">@job.Type</strong></td>
+                                <td class="cell-muted">@(job.Owner?.Username ?? "—")</td>
+                                <td class="cell-muted" style="white-space:nowrap;">@job.Attempts / @job.MaxAttempts</td>
+                                <td><div class="ai-error-msg">@job.Error</div></td>
+                                <td class="cell-mono">@job.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Serilog entries -->
+    <div class="ai-table-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">Recent Serilog Entries</span>
+        </div>
+        <div class="ai-log-body">
+            @if (logLines != null && logLines.Any())
+            {
+                <pre class="ai-log-pre">@string.Join("\n", logLines)</pre>
+            }
+            else
+            {
+                <p class="ai-health-pending">No log file found or file is empty.</p>
+            }
+        </div>
+    </div>
+
+</div>

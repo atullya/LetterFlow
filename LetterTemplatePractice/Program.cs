@@ -1,5 +1,7 @@
 using LetterTemplatePractice.Auth;
+using LetterTemplatePractice.BackgroundServices;
 using LetterTemplatePractice.Data;
+using LetterTemplatePractice.Models;
 using LetterTemplatePractice.Services;
 using Logging;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -60,6 +62,15 @@ builder.Services.AddScoped<BlogService>();
 builder.Services.AddHttpClient("gemini");
 builder.Services.AddScoped<GeminiService>();
 
+// AI Queue — background job processing
+builder.Services.Configure<AiQueueOptions>(builder.Configuration.GetSection("AiQueue"));
+builder.Services.AddScoped<IAiQueue, AiQueueService>();
+builder.Services.AddHostedService<GeminiWorker>();
+
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "LetterFlow API", Version = "v1" }));
@@ -74,6 +85,37 @@ using (var scope = app.Services.CreateScope())
 }
 
 await DataSeeder.SeedAsync(app.Services);
+
+// On startup: reset stuck InProgress jobs and fail exhausted ones
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var now = DateTimeOffset.UtcNow;
+
+    var stuckJobs = db.AiJobs
+        .Where(j => j.Status == AiJobStatus.InProgress)
+        .ToList();
+    foreach (var job in stuckJobs)
+    {
+        job.Status        = AiJobStatus.Pending;
+        job.WorkerId      = null;
+        job.StartedAt     = null;
+        job.NextAttemptAt = now.AddSeconds(30 * job.Attempts); // stagger retries
+    }
+
+    var exhaustedJobs = db.AiJobs
+        .Where(j => j.Status == AiJobStatus.Pending && j.Attempts >= j.MaxAttempts)
+        .ToList();
+    foreach (var job in exhaustedJobs)
+    {
+        job.Status      = AiJobStatus.Failed;
+        job.CompletedAt = now;
+        job.Error       = job.Error ?? "Exceeded max attempts";
+    }
+
+    if (stuckJobs.Count > 0 || exhaustedJobs.Count > 0)
+        await db.SaveChangesAsync();
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -98,6 +140,7 @@ app.UseRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapStaticAssets();
+app.MapHealthChecks("/health");
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}").WithStaticAssets();
 
 app.Run();

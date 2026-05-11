@@ -1,7 +1,9 @@
 using LetterTemplatePractice.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LetterTemplatePractice.Controllers.Api
 {
@@ -10,172 +12,154 @@ namespace LetterTemplatePractice.Controllers.Api
     [Route("api/ai")]
     public sealed class AiController : ControllerBase
     {
-        private readonly GeminiService _ai;
+        private readonly GeminiService _gemini;
+        private readonly IHttpClientFactory _httpFactory;
+        private readonly IConfiguration _config;
 
-        public AiController(GeminiService ai) => _ai = ai;
+        public AiController(GeminiService gemini, IHttpClientFactory httpFactory, IConfiguration config)
+        {
+            _gemini     = gemini;
+            _httpFactory = httpFactory;
+            _config     = config;
+        }
 
         // POST /api/ai/improve
         [HttpPost("improve")]
-        public async Task<IActionResult> Improve([FromBody] AiRequest req)
+        public async Task<IActionResult> Improve([FromBody] AiRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req.Text))
+            if (string.IsNullOrWhiteSpace(req?.Text))
                 return BadRequest(new { error = "Text is required." });
 
-            var result = await _ai.ImproveTextAsync(req.Text);
+            var result = await _gemini.ImproveTextAsync(req.Text, ct);
             return Ok(new { result });
         }
 
         // POST /api/ai/continue
         [HttpPost("continue")]
-        public async Task<IActionResult> Continue([FromBody] AiRequest req)
+        public async Task<IActionResult> Continue([FromBody] AiRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req.Text))
+            if (string.IsNullOrWhiteSpace(req?.Text))
                 return BadRequest(new { error = "Text is required." });
 
-            var result = await _ai.ContinueWritingAsync(req.Text);
+            var result = await _gemini.ContinueWritingAsync(req.Text, ct);
             return Ok(new { result });
         }
 
         // POST /api/ai/summarize
         [HttpPost("summarize")]
-        public async Task<IActionResult> Summarize([FromBody] AiRequest req)
+        public async Task<IActionResult> Summarize([FromBody] AiRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req.Text))
+            if (string.IsNullOrWhiteSpace(req?.Text))
                 return BadRequest(new { error = "Text is required." });
 
-            var result = await _ai.SummarizeAsync(req.Text);
+            var result = await _gemini.SummarizeAsync(req.Text, ct);
             return Ok(new { result });
         }
 
         // POST /api/ai/suggest-title
         [HttpPost("suggest-title")]
-        public async Task<IActionResult> SuggestTitle([FromBody] AiRequest req)
+        public async Task<IActionResult> SuggestTitle([FromBody] AiRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req.Text))
+            if (string.IsNullOrWhiteSpace(req?.Text))
                 return BadRequest(new { error = "Text is required." });
 
-            var raw = await _ai.SuggestTitleAsync(req.Text);
-
-            try
-            {
-                var titles = JsonSerializer.Deserialize<List<string>>(raw);
-                return Ok(new { titles });
-            }
-            catch
-            {
-                return Ok(new { titles = new List<string> { raw } });
-            }
+            var result = await _gemini.SuggestTitleAsync(req.Text, ct);
+            return Ok(new { result });
         }
 
+        // POST /api/ai/suggest-tags
         [HttpPost("suggest-tags")]
-        public async Task<IActionResult> SuggestTags([FromBody] AiRequest req)
+        public async Task<IActionResult> SuggestTags([FromBody] AiRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req.Text))
+            if (string.IsNullOrWhiteSpace(req?.Text))
                 return BadRequest(new { error = "Text is required." });
 
-            var raw = await _ai.SuggestTagsAsync(req.Text);
-
-            try
-            {
-                var tags = JsonSerializer.Deserialize<List<string>>(raw);
-                return Ok(new { tags });
-            }
-            catch
-            {
-                return Ok(new { tags = new List<string> { raw } });
-            }
+            var result = await _gemini.SuggestTagsAsync(req.Text, ct);
+            return Ok(new { result });
         }
 
         // POST /api/ai/suggest-images
-        // Gemini picks keywords → server fetches real photos from Pexels API
         [HttpPost("suggest-images")]
-        public async Task<IActionResult> SuggestImages([FromBody] AiRequest req)
+        public async Task<IActionResult> SuggestImages([FromBody] AiRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req.Text))
+            if (string.IsNullOrWhiteSpace(req?.Text))
                 return BadRequest(new { error = "Text is required." });
 
-            // Step 1 — Gemini picks 3 visual search keywords
-            var raw = await _ai.SuggestImageKeywordsAsync(req.Text);
+            // Step 1: Gemini generates visual keywords
+            var keywordsRaw = await _gemini.SuggestImageKeywordsAsync(req.Text, ct);
+            var keywords = JsonSerializer.Deserialize<string[]>(keywordsRaw) ?? [];
 
-            List<string> keywords;
-            try
+            // Step 2: Fetch photos from Pexels per keyword
+            var pexelsKey = _config["Pexels:ApiKey"];
+            var http = _httpFactory.CreateClient();
+            var allPhotos = new List<object>();
+
+            foreach (var keyword in keywords.Take(3))
             {
-                keywords = JsonSerializer.Deserialize<List<string>>(raw)
-                           ?? new List<string> { "blog", "writing", "technology" };
-            }
-            catch
-            {
-                keywords = new List<string> { "blog", "writing", "technology" };
-            }
+                var url = $"https://api.pexels.com/v1/search?query={Uri.EscapeDataString(keyword)}&per_page=2&orientation=landscape";
+                using var pexelsReq = new HttpRequestMessage(HttpMethod.Get, url);
+                pexelsReq.Headers.Add("Authorization", pexelsKey ?? "");
 
-            // Step 2 — fetch 2 photos per keyword from Pexels
-            var pexelsKey = HttpContext.RequestServices
-                .GetRequiredService<IConfiguration>()["Pexels:ApiKey"];
+                var resp = await http.SendAsync(pexelsReq, ct);
+                resp.EnsureSuccessStatusCode();
 
-            if (string.IsNullOrWhiteSpace(pexelsKey))
-                return StatusCode(503, new { error = "Pexels API key not configured. Add Pexels:ApiKey to appsettings." });
-
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Add("Authorization", pexelsKey);
-
-            var images = new List<object>();
-
-            foreach (var kw in keywords)
-            {
-                try
+                var json = await resp.Content.ReadFromJsonAsync<PexelsResponse>(ct);
+                if (json?.Photos != null)
                 {
-                    var url      = $"https://api.pexels.com/v1/search?query={Uri.EscapeDataString(kw)}&per_page=2&orientation=landscape";
-                    var response = await http.GetFromJsonAsync<PexelsResponse>(url);
-
-                    if (response?.Photos != null)
+                    allPhotos.AddRange(json.Photos.Select(p => new
                     {
-                        foreach (var photo in response.Photos)
-                        {
-                            images.Add(new
-                            {
-                                keyword  = kw,
-                                url      = photo.Src.Large,        // full-size for cover
-                                thumbUrl = photo.Src.Medium,       // thumbnail for preview
-                                photographer = photo.Photographer,
-                                pexelsUrl    = photo.Url
-                            });
-                        }
-                    }
+                        keyword,
+                        id    = p.Id,
+                        src   = p.Src?.Large2X ?? p.Src?.Large ?? p.Src?.Medium,
+                        alt   = p.Alt ?? keyword,
+                        photographer = p.Photographer
+                    }));
                 }
-                catch { /* skip failed keyword, continue with others */ }
             }
 
-            return Ok(new { keywords, images });
+            return Ok(new { result = allPhotos });
         }
 
-        // ── Pexels response DTOs ──────────────────────────────────────────────
+        // ── Pexels DTOs ─────────────────────────────────────────────────
+
         private sealed class PexelsResponse
         {
-            [System.Text.Json.Serialization.JsonPropertyName("photos")]
+            [JsonPropertyName("photos")]
             public List<PexelsPhoto>? Photos { get; set; }
         }
 
         private sealed class PexelsPhoto
         {
-            [System.Text.Json.Serialization.JsonPropertyName("url")]
-            public string Url { get; set; } = "";
+            [JsonPropertyName("id")]
+            public long Id { get; set; }
 
-            [System.Text.Json.Serialization.JsonPropertyName("photographer")]
-            public string Photographer { get; set; } = "";
+            [JsonPropertyName("alt")]
+            public string? Alt { get; set; }
 
-            [System.Text.Json.Serialization.JsonPropertyName("src")]
-            public PexelsSrc Src { get; set; } = new();
+            [JsonPropertyName("photographer")]
+            public string? Photographer { get; set; }
+
+            [JsonPropertyName("src")]
+            public PexelsSrc? Src { get; set; }
         }
 
         private sealed class PexelsSrc
         {
-            [System.Text.Json.Serialization.JsonPropertyName("large")]
-            public string Large { get; set; } = "";
+            [JsonPropertyName("large")]
+            public string? Large { get; set; }
 
-            [System.Text.Json.Serialization.JsonPropertyName("medium")]
-            public string Medium { get; set; } = "";
+            [JsonPropertyName("large2x")]
+            public string? Large2X { get; set; }
+
+            [JsonPropertyName("medium")]
+            public string? Medium { get; set; }
         }
     }
 
-    public sealed record AiRequest(string Text);
+    // ── Shared request DTO ─────────────────────────────────────────────
+
+    public sealed class AiRequest
+    {
+        public string? Text { get; set; }
+    }
 }

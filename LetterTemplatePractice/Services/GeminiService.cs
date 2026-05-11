@@ -28,56 +28,56 @@ namespace LetterTemplatePractice.Services
 
         // ── Public actions ────────────────────────────────────────────────────
 
-        public Task<string> ImproveTextAsync(string text)
+        public Task<string> ImproveTextAsync(string text, CancellationToken ct = default)
             => GenerateAsync(
                 "You are a professional writing editor. Rewrite the given text to be clearer, " +
                 "more engaging, and better structured. Keep the same meaning and approximate length. " +
                 "Return ONLY the improved text — no explanations, no quotes, no preamble.",
-                text);
+                text, ct);
 
-        public Task<string> ContinueWritingAsync(string text)
+        public Task<string> ContinueWritingAsync(string text, CancellationToken ct = default)
             => GenerateAsync(
                 "You are a creative writing assistant. Continue the given blog post naturally. " +
                 "Write 2–3 paragraphs that flow from where the text ends. " +
                 "Match the author's tone and style. Return ONLY the continuation text.",
-                text);
+                text, ct);
 
-        public Task<string> SummarizeAsync(string text)
+        public Task<string> SummarizeAsync(string text, CancellationToken ct = default)
             => GenerateAsync(
                 "Write a concise 1–2 sentence summary of the following blog post content. " +
                 "This will be used as the post excerpt shown in feed cards. " +
                 "Return ONLY the summary — no labels, no quotes.",
-                text);
+                text, ct);
 
-        public Task<string> SuggestTitleAsync(string text)
+        public Task<string> SuggestTitleAsync(string text, CancellationToken ct = default)
             => GenerateAsync(
                 "Suggest 3 compelling blog post titles for the following content. " +
                 "Return ONLY a JSON array of 3 strings, e.g. [\"Title One\",\"Title Two\",\"Title Three\"]. " +
                 "No explanation, no markdown, just the JSON array.",
-                text[..Math.Min(text.Length, 3000)]);
+                text[..Math.Min(text.Length, 3000)], ct);
 
-        public Task<string> SuggestTagsAsync(string text)
+        public Task<string> SuggestTagsAsync(string text, CancellationToken ct = default)
             => GenerateAsync(
                 "Extract 3–5 relevant topic tags from the following blog post. " +
                 "Return ONLY a JSON array of short tag strings, e.g. [\"AI\",\"Web Dev\",\"Career\"]. " +
                 "No explanation, no markdown, just the JSON array.",
-                text[..Math.Min(text.Length, 3000)]);
+                text[..Math.Min(text.Length, 3000)], ct);
 
         /// <summary>
         /// Returns 3 short, concrete Unsplash search keywords based on the blog content.
         /// e.g. ["mountain hiking", "nature trail", "outdoor adventure"]
         /// </summary>
-        public Task<string> SuggestImageKeywordsAsync(string text)
+        public Task<string> SuggestImageKeywordsAsync(string text, CancellationToken ct = default)
             => GenerateAsync(
                 "You are a photo editor choosing a cover image for a blog post. " +
                 "Based on the blog content, suggest 3 short, concrete, visually descriptive search phrases " +
                 "suitable for finding a great cover photo on Unsplash. " +
                 "Each phrase should be 1–3 words, specific and visual (e.g. 'mountain sunrise', 'coffee laptop', 'city skyline'). " +
                 "Return ONLY a JSON array of 3 strings. No explanation, no markdown, just the JSON array.",
-                text[..Math.Min(text.Length, 3000)]);
+                text[..Math.Min(text.Length, 3000)], ct);
 
 
-        private async Task<string> GenerateAsync(string systemPrompt, string userContent)
+        private async Task<string> GenerateAsync(string systemPrompt, string userContent, CancellationToken ct = default)
         {
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={_apiKey}";
 
@@ -101,13 +101,13 @@ namespace LetterTemplatePractice.Services
                     maxOutputTokens = 1024
                 }
             };
-
+    
             try
             {
-                var response = await _http.PostAsJsonAsync(url, body);
+                var response = await _http.PostAsJsonAsync(url, body, ct);
                 response.EnsureSuccessStatusCode();
 
-                var json = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+                var json = await response.Content.ReadFromJsonAsync<GeminiResponse>(ct);
                 return json?.Candidates?[0]?.Content?.Parts?[0]?.Text?.Trim()
                        ?? "No response from AI.";
             }

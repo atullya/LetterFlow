@@ -546,6 +546,7 @@
     const antiForgeryToken = () =>
         document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
 
+    // Call AI endpoint directly and return the result.
     async function callAi(endpoint, text) {
         const res = await fetch(`/api/ai/${endpoint}`, {
             method: 'POST',
@@ -556,7 +557,8 @@
             body: JSON.stringify({ text })
         });
         if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
-        return res.json();
+        const data = await res.json();
+        return data.result;
     }
 
     function getEditorText() {
@@ -597,24 +599,23 @@
 
         setLoading(true);
         try {
-            const data = await callAi('improve', text);
-            showResult(data.result);
+            const result = await callAi('improve', text);
+            showResult(result);
 
-            // Show apply button
             const applyBtn = document.getElementById('btnApplyImprove');
             if (applyBtn) {
                 applyBtn.style.display = '';
                 applyBtn.onclick = () => {
                     const editor = tinymce.get('storyEditor');
                     if (selected) {
-                        editor.selection.setContent(data.result);
+                        editor.selection.setContent(result);
                     } else {
-                        editor.setContent(data.result);
+                        editor.setContent(result);
                     }
                     document.getElementById('aiResult')?.classList.remove('visible');
                 };
             }
-        } catch { alert('AI request failed. Check your API key.'); }
+        } catch (e) { alert(e.message || 'AI request failed. Check your API key.'); }
         finally { setLoading(false); }
     });
 
@@ -625,19 +626,19 @@
 
         setLoading(true);
         try {
-            const data = await callAi('continue', text);
-            showResult(data.result);
+            const result = await callAi('continue', text);
+            showResult(result);
 
             const applyBtn = document.getElementById('btnApplyContinue');
             if (applyBtn) {
                 applyBtn.style.display = '';
                 applyBtn.onclick = () => {
                     const editor = tinymce.get('storyEditor');
-                    editor.execCommand('mceInsertContent', false, '<p>' + data.result.replace(/\n\n/g, '</p><p>') + '</p>');
+                    editor.execCommand('mceInsertContent', false, '<p>' + result.replace(/\n\n/g, '</p><p>') + '</p>');
                     document.getElementById('aiResult')?.classList.remove('visible');
                 };
             }
-        } catch { alert('AI request failed. Check your API key.'); }
+        } catch (e) { alert(e.message || 'AI request failed. Check your API key.'); }
         finally { setLoading(false); }
     });
 
@@ -648,13 +649,13 @@
 
         setLoading(true);
         try {
-            const data = await callAi('summarize', text);
+            const result = await callAi('summarize', text);
             const excerptInput = document.getElementById('Excerpt');
             if (excerptInput) {
-                excerptInput.value = data.result;
+                excerptInput.value = result;
                 excerptInput.focus();
             }
-        } catch { alert('AI request failed. Check your API key.'); }
+        } catch (e) { alert(e.message || 'AI request failed. Check your API key.'); }
         finally { setLoading(false); }
     });
 
@@ -665,11 +666,12 @@
 
         setLoading(true);
         try {
-            const data  = await callAi('suggest-title', text);
-            const chips = document.getElementById('aiTitleChips');
+            const raw    = await callAi('suggest-title', text);
+            const titles = JSON.parse(raw);   // result is a JSON array string
+            const chips  = document.getElementById('aiTitleChips');
             if (!chips) return;
             chips.replaceChildren();
-            (data.titles || []).forEach(title => {
+            titles.forEach(title => {
                 const btn = document.createElement('button');
                 btn.type      = 'button';
                 btn.className = 'ai-title-chip';
@@ -680,7 +682,7 @@
                 };
                 chips.appendChild(btn);
             });
-        } catch { alert('AI request failed. Check your API key.'); }
+        } catch (e) { alert(e.message || 'AI request failed. Check your API key.'); }
         finally { setLoading(false); }
     });
 
@@ -691,11 +693,12 @@
 
         setLoading(true);
         try {
-            const data  = await callAi('suggest-tags', text);
+            const raw  = await callAi('suggest-tags', text);
+            const tags = JSON.parse(raw);   // result is a JSON array string
             const chips = document.getElementById('aiTagChips');
             if (!chips) return;
             chips.replaceChildren();
-            (data.tags || []).forEach(tag => {
+            tags.forEach(tag => {
                 const btn = document.createElement('button');
                 btn.type      = 'button';
                 btn.className = 'ai-tag-chip';
@@ -708,7 +711,7 @@
                 };
                 chips.appendChild(btn);
             });
-        } catch { alert('AI request failed. Check your API key.'); }
+        } catch (e) { alert(e.message || 'AI request failed. Check your API key.'); }
         finally { setLoading(false); }
     });
 
@@ -726,17 +729,14 @@
         grid.replaceChildren();
 
         try {
-            const data = await callAi('suggest-images', text);
+            const result = await callAi('suggest-images', text);
+            const images = Array.isArray(result) ? result : JSON.parse(result);
 
             section.style.display = '';
             label.textContent     = 'Click an image to use it as cover';
 
-            // Show loading placeholders first
-            grid.innerHTML = '<div class="ai-image-loading"><i class="fas fa-circle-notch ai-spin-icon"></i> Loading images…</div>';
-
-            // Build image items grouped by keyword
             grid.replaceChildren();
-            (data.images || []).forEach((img, idx) => {
+            images.forEach((img, idx) => {
                 // Add keyword label before first image of each keyword
                 if (idx % 2 === 0) {
                     const kwLabel = document.createElement('div');
@@ -749,8 +749,8 @@
                 item.className = 'ai-image-item';
 
                 const image = document.createElement('img');
-                image.src     = img.thumbUrl;
-                image.alt     = img.keyword;
+                image.src     = img.src || img.thumbUrl;
+                image.alt     = img.alt || img.keyword;
                 image.loading = 'lazy';
 
                 const overlay = document.createElement('div');
@@ -761,15 +761,12 @@
                 item.appendChild(overlay);
 
                 item.addEventListener('click', () => {
-                    // Fill the Cover Image URL field with the full-size URL
                     const coverInput = document.getElementById('CoverImageUrl');
                     if (coverInput) {
-                        coverInput.value = img.url;
+                        coverInput.value = img.src || img.url;
                         coverInput.focus();
-                        // Highlight the selected item
                         grid.querySelectorAll('.ai-image-item').forEach(el => el.classList.remove('selected'));
                         item.classList.add('selected');
-                        // Scroll the cover input into view
                         coverInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 });
@@ -777,7 +774,7 @@
                 grid.appendChild(item);
             });
 
-        } catch { alert('AI request failed. Check your API key.'); }
+        } catch (e) { alert(e.message || 'AI request failed. Check your API key.'); }
         finally { setLoading(false); }
     });
 </script>

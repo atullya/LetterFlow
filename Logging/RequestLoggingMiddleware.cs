@@ -24,7 +24,7 @@ namespace Logging
             var path   = context.Request.Path.Value ?? "/";
             var method = context.Request.Method;
             var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+   
             try
             {
                 await _next(context);

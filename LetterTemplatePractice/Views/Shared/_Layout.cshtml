@@ -89,6 +89,20 @@
             </a> *@
             @if (User.Identity?.IsAuthenticated == true)
             {
+                @if (User.IsInRole("Admin"))
+                {
+                    <div class="sidebar-section-divider"></div>
+                    <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Logs" ? "active" : "")"
+                       asp-controller="Logs" asp-action="Index">
+                        <i class="fas fa-terminal"></i>
+                        <span>Logs</span>
+                    </a>
+                    <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AiDashboard" ? "active" : "")"
+                       asp-controller="AiDashboard" asp-action="Index">
+                        <i class="fas fa-robot"></i>
+                        <span>AI Dashboard</span>
+                    </a>
+                }
             }
         </nav>
     </aside>

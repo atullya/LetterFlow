@@ -14,6 +14,7 @@ namespace LetterTemplatePractice.Data
         public DbSet<BlogLike>        BlogLikes { get; set; }
         public DbSet<Follow>          Follows { get; set; }
         public DbSet<Notification>    Notifications { get; set; }
+        public DbSet<AiJob>           AiJobs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +130,18 @@ namespace LetterTemplatePractice.Data
                 e.HasOne(n => n.Post)
                     .WithMany()
                     .HasForeignKey(n => n.PostId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<AiJob>(e =>
+            {
+                e.HasKey(j => j.Id);
+                e.Property(j => j.Type).IsRequired().HasMaxLength(50);
+                e.Property(j => j.Status).IsRequired().HasMaxLength(20);
+                e.Property(j => j.WorkerId).HasMaxLength(100);
+                e.HasIndex(j => new { j.Status, j.NextAttemptAt, j.CreatedAt });
+                e.HasOne(j => j.Owner).WithMany()
+                    .HasForeignKey(j => j.OwnerUserId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
         }

@@ -1638,3 +1638,153 @@ textarea { resize: vertical; }
   .profile-avatar-lg { width: 56px; height: 56px; font-size: 1.3rem; }
   .profile-name { font-size: 1.25rem; }
 }
+
+/* ── Sidebar section divider ──────────────────────────────────────────────── */
+.sidebar-section-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 10px 12px;
+}
+
+/* ── Status badges (shared across Logs, AI Dashboard) ────────────────────── */
+.log-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+.badge-ok    { background: #ecfdf5; color: #16a34a; }
+.badge-warn  { background: #fffbeb; color: #b45309; }
+.badge-info  { background: #eff6ff; color: #2563eb; }
+.badge-error { background: #fef2f2; color: #dc2626; }
+.badge-muted { background: #f3f4f6; color: #6b7280; }
+
+/* ── btn-xs (extra small button variant) ─────────────────────────────────── */
+.btn-xs {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+}
+
+.btn-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.btn-danger:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+/* ── AI Dashboard shared shell ────────────────────────────────────────────── */
+.ai-dash-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ai-dash-header  { padding-bottom: 8px; }
+.ai-dash-title   { margin: 4px 0 6px; font-size: 1.75rem; font-weight: 800; line-height: 1.15; }
+.ai-dash-subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.ai-dash-subtitle a { color: var(--text); font-weight: 600; text-decoration: none; }
+.ai-dash-subtitle a:hover { text-decoration: underline; }
+
+/* Shared card */
+.ai-table-card,
+.ai-chart-card,
+.ai-health-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ai-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-chart-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ai-chart-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 2px 10px;
+}
+
+/* Shared table */
+.ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+}
+
+.ai-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.ai-table tbody tr { border-bottom: 1px solid var(--line); }
+.ai-table tbody tr:last-child { border-bottom: none; }
+.ai-table tbody tr:hover td { background: #fafafa; }
+.ai-table td { padding: 12px 16px; vertical-align: middle; color: var(--text); }
+
+.ai-error-msg {
+  color: #dc2626;
+  font-size: 0.82rem;
+  max-width: 420px;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* Log panel */
+.ai-log-body { padding: 16px 20px; }
+
+.ai-log-pre {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 0.75rem;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.ai-health-pending { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+@media (max-width: 768px) {
+  .ai-dash-shell { padding: 28px 16px 60px; }
+  .ai-table thead th,
+  .ai-table td { padding: 10px 12px; }
+  .ai-error-msg { max-width: 220px; }
+}
