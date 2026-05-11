@@ -45,23 +45,38 @@ namespace LetterTemplatePractice.Controllers.Admin
         }
 
         // GET /Admin/AiDashboard/Jobs
-        public async Task<IActionResult> Jobs(CancellationToken ct)
+        public async Task<IActionResult> Jobs(
+            int     page     = 1,
+            int     pageSize = 15,
+            string? status   = null,
+            string? type     = null,
+            string? owner    = null,
+            CancellationToken ct = default)
         {
-            var jobs = await _queue.GetRecentJobsAsync(100, ct);
-            return View(jobs);
+            var paged = await _queue.GetPagedJobsAsync(page, pageSize, status, type, owner, ct);
+            ViewBag.Status   = status;
+            ViewBag.Type     = type;
+            ViewBag.Owner    = owner;
+            ViewBag.PageSize = pageSize;
+            return View(paged);
         }
 
         // GET /Admin/AiDashboard/Errors
-        public async Task<IActionResult> Errors(CancellationToken ct)
+        public async Task<IActionResult> Errors(
+            int              page     = 1,
+            int              pageSize = 15,
+            DateTimeOffset?  from     = null,
+            DateTimeOffset?  to       = null,
+            string?          keyword  = null,
+            CancellationToken ct      = default)
         {
-            var errors = await _queue.GetRecentErrorsAsync(100, ct);
+            var paged = await _queue.GetPagedErrorsAsync(page, pageSize, from, to, keyword, ct);
 
-            // Also read last N lines from Serilog file
+            // Read last 100 lines from the latest Serilog file
             var logLines = new List<string>();
-            var logPath = _config["Serilog:WriteTo:1:Args:path"];
+            var logPath  = _config["Serilog:WriteTo:1:Args:path"];
             if (!string.IsNullOrEmpty(logPath))
             {
-                // Serilog uses {Date} in the path; find the latest log file
                 var dir = Path.GetDirectoryName(logPath);
                 if (dir != null && Directory.Exists(dir))
                 {
@@ -81,7 +96,11 @@ namespace LetterTemplatePractice.Controllers.Admin
             }
 
             ViewBag.LogLines = logLines;
-            return View(errors);
+            ViewBag.From     = from;
+            ViewBag.To       = to;
+            ViewBag.Keyword  = keyword;
+            ViewBag.PageSize = pageSize;
+            return View(paged);
         }
 
         // ── Dashboard API (JSON for AJAX polling) ──────────────────────────

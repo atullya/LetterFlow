@@ -1,7 +1,22 @@
-@model List<LetterTemplatePractice.Models.AiJob>
+@model Logging.PagedResult<LetterTemplatePractice.Models.AiJob>
 @{
     ViewData["Title"] = "AI Error Feed";
-    var logLines = (List<string>)ViewBag.LogLines;
+    var logLines = ViewBag.LogLines as List<string> ?? new List<string>();
+    var from     = ViewBag.From     as DateTimeOffset?;
+    var to       = ViewBag.To       as DateTimeOffset?;
+    var keyword  = ViewBag.Keyword  as string;
+    var pageSize = (int)(ViewBag.PageSize ?? 15);
+
+    string PageUrl(int p) {
+        var q = new Dictionary<string, string?> {
+            ["page"]     = p.ToString(),
+            ["pageSize"] = pageSize.ToString(),
+            ["from"]     = from?.ToString("yyyy-MM-ddTHH:mm"),
+            ["to"]       = to?.ToString("yyyy-MM-ddTHH:mm"),
+            ["keyword"]  = keyword
+        };
+        return "/AiDashboard/Errors?" + string.Join("&", q.Where(kv => kv.Value != null).Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value!)}"));
+    }
 }
 
 <div class="ai-dash-shell">
@@ -11,22 +26,59 @@
             <p class="eyebrow">Admin</p>
             <h1 class="ai-dash-title">AI Error Feed</h1>
             <p class="ai-dash-subtitle">
-                Recent failed jobs and Serilog entries.
+                Failed jobs and Serilog entries.
                 <a asp-action="Index">&larr; Dashboard</a>
             </p>
         </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="logs-filter-card">
+        <form method="get" asp-action="Errors">
+            <div class="logs-filter-row">
+                <div class="logs-filter-field">
+                    <label class="form-label">From</label>
+                    <input type="datetime-local" name="from" class="form-control"
+                           value="@(from?.ToString("yyyy-MM-ddTHH:mm") ?? "")" />
+                </div>
+                <div class="logs-filter-field">
+                    <label class="form-label">To</label>
+                    <input type="datetime-local" name="to" class="form-control"
+                           value="@(to?.ToString("yyyy-MM-ddTHH:mm") ?? "")" />
+                </div>
+                <div class="logs-filter-field logs-filter-search">
+                    <label class="form-label">Keyword</label>
+                    <input type="text" name="keyword" class="form-control"
+                           placeholder="Error message or job type…" value="@keyword" />
+                </div>
+                <div class="logs-filter-field" style="min-width:100px;">
+                    <label class="form-label">Per page</label>
+                    <select name="pageSize" class="form-select">
+                        @foreach (var s in new[] { 15, 30, 45, 60, 75 })
+                        {
+                            <option value="@s" selected="@(pageSize == s ? "selected" : null)">@s</option>
+                        }
+                    </select>
+                </div>
+                <input type="hidden" name="page" value="1" />
+                <div class="logs-filter-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Apply</button>
+                    <a asp-action="Errors" class="btn btn-secondary" title="Clear"><i class="fas fa-times"></i></a>
+                </div>
+            </div>
+        </form>
     </div>
 
     <!-- Failed jobs table -->
     <div class="ai-table-card">
         <div class="ai-chart-header">
             <span class="ai-chart-title">Failed Jobs</span>
-            <span class="ai-chart-badge">@Model.Count total</span>
+            <span class="ai-chart-badge">@Model.TotalCount total</span>
         </div>
 
-        @if (!Model.Any())
+        @if (!Model.Items.Any())
         {
-            <div class="empty-state" style="padding: 48px 24px;">
+            <div class="empty-state" style="padding:48px 24px;">
                 <i class="fas fa-check-circle" style="font-size:2rem; color:#16a34a; margin-bottom:12px;"></i>
                 <h5>No errors</h5>
                 <p>All recent jobs completed successfully.</p>
@@ -46,7 +98,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var job in Model)
+                        @foreach (var job in Model.Items)
                         {
                             <tr>
                                 <td><strong style="color:#dc2626;">@job.Type</strong></td>
@@ -59,6 +111,45 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            <div class="logs-pagination">
+                <div class="logs-pagination-info">
+                    Page <strong>@Model.Page</strong> of <strong>@Model.TotalPages</strong>
+                    &nbsp;·&nbsp; @Model.TotalCount total errors
+                </div>
+                <div class="logs-pagination-nav">
+                    @if (Model.HasPrev)
+                    {
+                        <a href="@PageUrl(1)" class="pager-btn" title="First"><i class="fas fa-angles-left"></i></a>
+                        <a href="@PageUrl(Model.Page - 1)" class="pager-btn" title="Previous"><i class="fas fa-angle-left"></i></a>
+                    }
+                    else
+                    {
+                        <span class="pager-btn disabled"><i class="fas fa-angles-left"></i></span>
+                        <span class="pager-btn disabled"><i class="fas fa-angle-left"></i></span>
+                    }
+                    @{
+                        int sp = Math.Max(1, Model.Page - 2);
+                        int ep = Math.Min(Model.TotalPages, sp + 4);
+                        sp = Math.Max(1, ep - 4);
+                    }
+                    @for (int p = sp; p <= ep; p++)
+                    {
+                        <a href="@PageUrl(p)" class="pager-btn @(p == Model.Page ? "active" : "")">@p</a>
+                    }
+                    @if (Model.HasNext)
+                    {
+                        <a href="@PageUrl(Model.Page + 1)" class="pager-btn" title="Next"><i class="fas fa-angle-right"></i></a>
+                        <a href="@PageUrl(Model.TotalPages)" class="pager-btn" title="Last"><i class="fas fa-angles-right"></i></a>
+                    }
+                    else
+                    {
+                        <span class="pager-btn disabled"><i class="fas fa-angle-right"></i></span>
+                        <span class="pager-btn disabled"><i class="fas fa-angles-right"></i></span>
+                    }
+                </div>
+            </div>
         }
     </div>
 
@@ -66,9 +157,10 @@
     <div class="ai-table-card">
         <div class="ai-chart-header">
             <span class="ai-chart-title">Recent Serilog Entries</span>
+            <span class="ai-chart-badge">last 100 lines</span>
         </div>
         <div class="ai-log-body">
-            @if (logLines != null && logLines.Any())
+            @if (logLines.Any())
             {
                 <pre class="ai-log-pre">@string.Join("\n", logLines)</pre>
             }
@@ -80,3 +172,33 @@
     </div>
 
 </div>
+
+@section Scripts {
+<style>
+.logs-filter-card {
+    background: #fff; border: 1px solid var(--line);
+    border-radius: var(--radius-lg); padding: 20px 24px;
+}
+.logs-filter-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.logs-filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+.logs-filter-search { flex: 1; min-width: 200px; }
+.logs-filter-actions { display: flex; gap: 8px; align-items: flex-end; padding-bottom: 1px; }
+
+.logs-pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-top: 1px solid var(--line); flex-wrap: wrap; gap: 12px;
+}
+.logs-pagination-info { font-size: 0.82rem; color: var(--muted); }
+.logs-pagination-nav { display: flex; align-items: center; gap: 4px; }
+.pager-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 34px; padding: 0 8px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--text); font-size: 0.82rem; font-weight: 600;
+    text-decoration: none; transition: border-color 160ms ease, background 160ms ease;
+}
+.pager-btn:hover { border-color: var(--text); background: var(--surface); text-decoration: none; color: var(--text); }
+.pager-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+.pager-btn.disabled { opacity: 0.35; pointer-events: none; }
+</style>
+}

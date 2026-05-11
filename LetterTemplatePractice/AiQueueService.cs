@@ -177,5 +177,84 @@ namespace LetterTemplatePractice.Services
                 .OrderByDescending(j => j.CompletedAt ?? j.CreatedAt)
                 .Take(limit)
                 .ToListAsync(ct);
+
+        public async Task<Logging.PagedResult<AiJob>> GetPagedJobsAsync(
+            int     page     = 1,
+            int     pageSize = 25,
+            string? status   = null,
+            string? type     = null,
+            string? owner    = null,
+            CancellationToken ct = default)
+        {
+            pageSize = Math.Clamp(pageSize, 5, 100);
+            page     = Math.Max(1, page);
+
+            var query = _db.AiJobs.Include(j => j.Owner).AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(j => j.Status == status);
+
+            if (!string.IsNullOrWhiteSpace(type))
+                query = query.Where(j => j.Type == type);
+
+            if (!string.IsNullOrWhiteSpace(owner))
+                query = query.Where(j => j.Owner != null && j.Owner.Username.Contains(owner));
+
+            var total = await query.CountAsync(ct);
+            var items = await query
+                .OrderByDescending(j => j.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+
+            return new Logging.PagedResult<AiJob>
+            {
+                Items      = items,
+                TotalCount = total,
+                Page       = page,
+                PageSize   = pageSize
+            };
+        }
+
+        public async Task<Logging.PagedResult<AiJob>> GetPagedErrorsAsync(
+            int               page      = 1,
+            int               pageSize  = 25,
+            DateTimeOffset?   from      = null,
+            DateTimeOffset?   to        = null,
+            string?           keyword   = null,
+            CancellationToken ct        = default)
+        {
+            pageSize = Math.Clamp(pageSize, 5, 100);
+            page     = Math.Max(1, page);
+
+            var query = _db.AiJobs
+                .Where(j => j.Status == AiJobStatus.Failed && j.Error != null)
+                .Include(j => j.Owner)
+                .AsQueryable();
+
+            if (from.HasValue)
+                query = query.Where(j => j.CreatedAt >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(j => j.CreatedAt <= to.Value);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(j => j.Error!.Contains(keyword) || j.Type.Contains(keyword));
+
+            var total = await query.CountAsync(ct);
+            var items = await query
+                .OrderByDescending(j => j.CompletedAt ?? j.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+
+            return new Logging.PagedResult<AiJob>
+            {
+                Items      = items,
+                TotalCount = total,
+                Page       = page,
+                PageSize   = pageSize
+            };
+        }
     }
 }

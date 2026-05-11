@@ -5,51 +5,45 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LetterTemplatePractice.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public sealed class LogsController : Controller
     {
         private readonly IAppLogger _logger;
 
         public LogsController(IAppLogger logger) => _logger = logger;
 
+        // GET /Logs?date=&level=&search=&page=1&pageSize=50
         [HttpGet]
-        public IActionResult Index()
+        public IActionResult Index(
+            DateTime?    date     = null,
+            AppLogLevel? level    = null,
+            string?      search   = null,
+            int          page     = 1,
+            int          pageSize = 15)
         {
-            var filter = new LogFilterViewModel();
+            var vm = new LogFilterViewModel
+            {
+                Date     = date,
+                Level    = level,
+                Search   = search,
+                Page     = page,
+                PageSize = pageSize
+            };
 
             try
             {
-                filter.AvailableDates = _logger.GetAvailableDates();
+                vm.AvailableDates = _logger.GetAvailableDates();
+
+                // Always load — no "submit" gate needed with GET
+                vm.PagedLogs = _logger.GetPagedLogs(date, level, search, page, pageSize);
             }
             catch (Exception ex)
             {
-                filter.ErrorMessage = $"Unable to load log dates: {ex.Message}";
+                vm.ErrorMessage = $"Unable to load logs: {ex.Message}";
             }
 
             ViewData["Title"] = "Application Logs";
-            return View(filter);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Index(LogFilterViewModel filter)
-        {
-            filter.HasSubmitted = true;
-
-            try
-            {
-                filter.Logs = _logger
-                    .GetFilteredLogs(filter.Date, filter.Level, filter.Search)
-                    .ToList();
-                filter.AvailableDates = _logger.GetAvailableDates();
-            }
-            catch (Exception ex)
-            {
-                filter.ErrorMessage = $"Unable to load logs: {ex.Message}";
-            }
-
-            ViewData["Title"] = "Application Logs";
-            return View(filter);
+            return View(vm);
         }
     }
 }

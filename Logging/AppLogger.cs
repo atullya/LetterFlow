@@ -102,6 +102,51 @@ namespace Logging
             return query.TakeLast(count).Reverse().ToList();
         }
 
+        public PagedResult<LogEntry> GetPagedLogs(
+            DateTime?    date     = null,
+            AppLogLevel? level    = null,
+            string?      search   = null,
+            int          page     = 1,
+            int          pageSize = 50)
+        {
+            pageSize = Math.Clamp(pageSize, 10, 200);
+            page     = Math.Max(1, page);
+
+            IEnumerable<LogEntry> query = _buffer;
+
+            if (date.HasValue)
+            {
+                var day = date.Value.Date;
+                query = query.Where(e => e.CreatedAt.ToLocalTime().Date == day);
+            }
+
+            if (level.HasValue)
+                query = query.Where(e => e.Level == level.Value);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                query = query.Where(e =>
+                    e.Message.Contains(term, StringComparison.OrdinalIgnoreCase)     ||
+                    e.Category.Contains(term, StringComparison.OrdinalIgnoreCase)    ||
+                    (e.RequestPath != null && e.RequestPath.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (e.Exception   != null && e.Exception.Contains(term, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            // Newest first
+            var ordered = query.OrderByDescending(e => e.CreatedAt).ToList();
+            var total   = ordered.Count;
+            var items   = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            return new PagedResult<LogEntry>
+            {
+                Items      = items,
+                TotalCount = total,
+                Page       = page,
+                PageSize   = pageSize
+            };
+        }
+
         public IReadOnlyList<DateOnly> GetAvailableDates()
             => _buffer
                 .Select(e => DateOnly.FromDateTime(e.CreatedAt.ToLocalTime()))

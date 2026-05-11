@@ -42,5 +42,23 @@ namespace LetterTemplatePractice.Services
         Task<List<AiJob>> GetRecentJobsAsync(int limit = 50, CancellationToken ct = default);
 
         Task<List<AiJob>> GetRecentErrorsAsync(int limit = 50, CancellationToken ct = default);
+
+        /// <summary>Paginated job list with optional status/type/owner filters.</summary>
+        Task<Logging.PagedResult<AiJob>> GetPagedJobsAsync(
+            int     page     = 1,
+            int     pageSize = 25,
+            string? status   = null,
+            string? type     = null,
+            string? owner    = null,
+            CancellationToken ct = default);
+
+        /// <summary>Paginated failed-job list with optional date range and keyword.</summary>
+        Task<Logging.PagedResult<AiJob>> GetPagedErrorsAsync(
+            int               page      = 1,
+            int               pageSize  = 25,
+            DateTimeOffset?   from      = null,
+            DateTimeOffset?   to        = null,
+            string?           keyword   = null,
+            CancellationToken ct        = default);
     }
 }

@@ -20,6 +20,17 @@ namespace Logging
             string?      search = null,
             int          count  = 500);
 
+        /// <summary>
+        /// Returns a paginated, filtered slice of the in-memory log buffer.
+        /// Entries are ordered newest-first.
+        /// </summary>
+        PagedResult<LogEntry> GetPagedLogs(
+            DateTime?    date     = null,
+            AppLogLevel? level    = null,
+            string?      search   = null,
+            int          page     = 1,
+            int          pageSize = 50);
+
         IReadOnlyList<DateOnly> GetAvailableDates();
     }
 }
