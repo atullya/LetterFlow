@@ -51,13 +51,6 @@
 
     <!-- Sidebar — hidden by default, toggled by hamburger -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            <div class="sidebar-brand-mark">
-                <i class="fas fa-feather-pointed"></i>
-            </div>
-            <span class="sidebar-brand-text">LetterFlow Stories</span>
-        </div>
-
         <nav class="sidebar-nav">
             <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")"
                asp-controller="Home" asp-action="Index">
@@ -109,100 +102,99 @@
 
     <div class="shell-backdrop" id="shellBackdrop"></div>
 
-    <div class="main-content" id="mainContent">
-        <header class="topbar">
-            <div class="topbar-intro">
-                <!-- Hamburger — always visible, toggles sidebar -->
-                <button class="topbar-hamburger" id="sidebarToggle" type="button" aria-label="Toggle navigation">
-                    <span></span><span></span><span></span>
-                </button>
-                <a class="topbar-home-link" asp-controller="Home" asp-action="Index">
-                    <span class="topbar-wordmark">LetterFlow Stories</span>
+    <header class="topbar">
+        <div class="topbar-intro">
+            <!-- Hamburger — always visible, toggles sidebar -->
+            <button class="topbar-hamburger" id="sidebarToggle" type="button" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+            <a class="topbar-home-link" asp-controller="Home" asp-action="Index">
+                <span class="topbar-logo-mark"><i class="fas fa-feather-pointed"></i></span>
+                <span class="topbar-wordmark">LetterFlow Stories</span>
+            </a>
+        </div>
+
+        <div class="topbar-actions">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a asp-controller="Blog" asp-action="Create" class="topbar-write-btn">
+                    <i class="fas fa-pen-to-square"></i>
+                    <span>Write</span>
                 </a>
-            </div>
-
-            <!-- Search bar removed — each page has its own contextual search -->
-
-            <div class="topbar-actions">
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <a asp-controller="Blog" asp-action="Create" class="topbar-write-btn">
-                        <i class="fas fa-pen-to-square"></i>
-                        <span>Write</span>
-                    </a>
-                    <div class="notification-wrapper" id="notificationRoot">
-                        <button class="topbar-icon-btn" id="notificationToggle" title="Notifications" aria-label="Notifications" type="button">
-                            <i class="fas fa-bell"></i>
-                            <span class="notification-badge" id="notificationBadge" style="display:none;">0</span>
-                        </button>
-                        <div class="notification-dropdown" id="notificationDropdown">
-                            <div class="notification-dropdown-header">
-                                <span style="font-weight:700;">Notifications</span>
-                                <button type="button" class="notification-mark-read" id="markAllReadBtn">Mark all as read</button>
-                            </div>
-                            <div class="notification-list" id="notificationList">
-                                <div class="notification-empty" id="notificationEmpty">
-                                    <i class="fa-regular fa-bell"></i>
-                                    <div>No notifications yet</div>
-                                </div>
+                <div class="notification-wrapper" id="notificationRoot">
+                    <button class="topbar-icon-btn" id="notificationToggle" title="Notifications" aria-label="Notifications" type="button">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge" style="display:none;">0</span>
+                    </button>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-dropdown-header">
+                            <span style="font-weight:700;">Notifications</span>
+                            <button type="button" class="notification-mark-read" id="markAllReadBtn">Mark all as read</button>
+                        </div>
+                        <div class="notification-list" id="notificationList">
+                            <div class="notification-empty" id="notificationEmpty">
+                                <i class="fa-regular fa-bell"></i>
+                                <div>No notifications yet</div>
                             </div>
                         </div>
                     </div>
-                    <div class="topbar-user-menu" id="userMenuRoot">
-                        <button class="topbar-avatar-btn" id="userMenuToggle" type="button"
-                                aria-haspopup="true" aria-expanded="false">
-                            @if (!string.IsNullOrEmpty(_avatarUrl))
-                            {
-                                <img src="@_avatarUrl" alt="@_displayName" class="topbar-avatar-img" />
-                            }
-                            else
-                            {
-                                <span class="topbar-avatar-initials">@(_displayName.Substring(0, 1).ToUpper())</span>
-                            }
-                        </button>
-                        <div class="user-dropdown" id="userDropdown" role="menu">
-                            <div class="user-dropdown-header">
-                                <div class="user-dropdown-avatar">
-                                    @if (!string.IsNullOrEmpty(_avatarUrl))
-                                    {
-                                        <img src="@_avatarUrl" alt="@_displayName" />
-                                    }
-                                    else
-                                    {
-                                        <span>@(_displayName.Substring(0, 1).ToUpper())</span>
-                                    }
-                                </div>
-                                <div class="user-dropdown-info">
-                                    <span class="user-dropdown-name">@_displayName</span>
-                                    <a href="/@@@(_username)" class="user-dropdown-profile-link">View profile</a>
-                                </div>
+                </div>
+                <div class="topbar-user-menu" id="userMenuRoot">
+                    <button class="topbar-avatar-btn" id="userMenuToggle" type="button"
+                            aria-haspopup="true" aria-expanded="false">
+                        @if (!string.IsNullOrEmpty(_avatarUrl))
+                        {
+                            <img src="@_avatarUrl" alt="@_displayName" class="topbar-avatar-img" />
+                        }
+                        else
+                        {
+                            <span class="topbar-avatar-initials">@(_displayName.Substring(0, 1).ToUpper())</span>
+                        }
+                    </button>
+                    <div class="user-dropdown" id="userDropdown" role="menu">
+                        <div class="user-dropdown-header">
+                            <div class="user-dropdown-avatar">
+                                @if (!string.IsNullOrEmpty(_avatarUrl))
+                                {
+                                    <img src="@_avatarUrl" alt="@_displayName" />
+                                }
+                                else
+                                {
+                                    <span>@(_displayName.Substring(0, 1).ToUpper())</span>
+                                }
                             </div>
-                            <div class="user-dropdown-divider"></div>
-                            <a asp-controller="Settings" asp-action="Index" class="user-dropdown-item" role="menuitem">
-                                <i class="fas fa-gear"></i> Settings
-                            </a>
-                            <a href="#" class="user-dropdown-item" role="menuitem">
-                                <i class="fas fa-circle-question"></i> Help
-                            </a>
-                            <div class="user-dropdown-divider"></div>
-                            <div class="user-dropdown-footer">
-                                <form asp-controller="Account" asp-action="Logout" method="post">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="user-dropdown-logout">Logout</button>
-                                </form>
-                                <span class="user-dropdown-email">@_emailMasked</span>
+                            <div class="user-dropdown-info">
+                                <span class="user-dropdown-name">@_displayName</span>
+                                <a href="/@@@(_username)" class="user-dropdown-profile-link">View profile</a>
                             </div>
                         </div>
+                        <div class="user-dropdown-divider"></div>
+                        <a asp-controller="Settings" asp-action="Index" class="user-dropdown-item" role="menuitem">
+                            <i class="fas fa-gear"></i> Settings
+                        </a>
+                        <a href="#" class="user-dropdown-item" role="menuitem">
+                            <i class="fas fa-circle-question"></i> Help
+                        </a>
+                        <div class="user-dropdown-divider"></div>
+                        <div class="user-dropdown-footer">
+                            <form asp-controller="Account" asp-action="Logout" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="user-dropdown-logout">Logout</button>
+                            </form>
+                            <span class="user-dropdown-email">@_emailMasked</span>
+                        </div>
                     </div>
-                }
-                else
-                {
-                    <a asp-controller="Account" asp-action="Login" class="btn btn-secondary btn-sm">Sign in</a>
-                    <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-sm">Get started</a>
-                }
-            </div>
-        </header>
+                </div>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="btn btn-secondary btn-sm">Sign in</a>
+                <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-sm">Get started</a>
+            }
+        </div>
+    </header>
 
+    <div class="main-content" id="mainContent">
         <div class="page-body">
             @RenderBody()
         </div>
