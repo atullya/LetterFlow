@@ -1,5 +1,6 @@
 using LetterTemplatePractice.Data;
 using LetterTemplatePractice.Models;
+using LetterTemplatePractice.Models.ViewModels;
 using LetterTemplatePractice.Services;
 using Logging;
 using Microsoft.AspNetCore.Authorization;
@@ -37,9 +38,43 @@ namespace LetterTemplatePractice.Controllers.Admin
                 .CountAsync(j => j.Status == AiJobStatus.Failed
                                  && j.CompletedAt >= DateTimeOffset.UtcNow.AddHours(-24), ct);
 
-            ViewBag.Counts = counts;
-            ViewBag.Succeeded24h = recent24hSucceeded;
-            ViewBag.Failed24h = recent24hFailed;
+            // Reported users: top 50 with at least one unresolved report
+            var reportedUsers = await _db.Reports
+                .Where(r => r.TargetUserId != null && !r.IsResolved)
+                .GroupBy(r => r.TargetUserId!)
+                .Select(g => new ReportedUserViewModel
+                {
+                    Id              = g.Key!.Value,
+                    UnresolvedCount = g.Count()
+                })
+                .OrderByDescending(x => x.UnresolvedCount)
+                .Take(50)
+                .ToListAsync(ct);
+
+            // Enrich with user details
+            if (reportedUsers.Any())
+            {
+                var userIds = reportedUsers.Select(x => x.Id).ToList();
+                var users   = await _db.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.IsHiddenProfile })
+                    .ToListAsync(ct);
+
+                foreach (var item in reportedUsers)
+                {
+                    var u = users.FirstOrDefault(x => x.Id == item.Id);
+                    if (u != null)
+                    {
+                        item.Username        = u.Username;
+                        item.IsHiddenProfile = u.IsHiddenProfile;
+                    }
+                }
+            }
+
+            ViewBag.Counts        = counts;
+            ViewBag.Succeeded24h  = recent24hSucceeded;
+            ViewBag.Failed24h     = recent24hFailed;
+            ViewBag.ReportedUsers = reportedUsers;
 
             return View();
         }

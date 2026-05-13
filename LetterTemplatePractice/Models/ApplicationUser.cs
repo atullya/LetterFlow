@@ -33,6 +33,8 @@ namespace LetterTemplatePractice.Models
 
         public bool IsActive { get; set; } = true;
 
+        public bool IsHiddenProfile { get; set; } = false;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginAt { get; set; }
@@ -50,6 +52,12 @@ namespace LetterTemplatePractice.Models
 
         /// <summary>Notifications received by this user.</summary>
         public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
+        /// <summary>Reports submitted by this user.</summary>
+        public virtual ICollection<Report> ReportsSubmitted { get; set; } = new List<Report>();
+
+        /// <summary>Reports targeting this user's profile.</summary>
+        public virtual ICollection<Report> ReportsReceived { get; set; } = new List<Report>();
     }
 
     /// <summary>Role constants — avoids magic strings throughout the codebase.</summary>

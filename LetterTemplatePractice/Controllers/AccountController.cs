@@ -20,12 +20,12 @@ namespace LetterTemplatePractice.Controllers
         private const string Category = nameof(AccountController);
 
         private readonly IAuthService _authService;
-        private readonly IAppLogger   _logger;
+        private readonly IAppLogger _logger;
 
         public AccountController(IAuthService authService, IAppLogger logger)
         {
             _authService = authService;
-            _logger      = logger;
+            _logger = logger;
         }
 
         // ── GET /Account/Login ────────────────────────────────────────────────
@@ -58,7 +58,7 @@ namespace LetterTemplatePractice.Controllers
                 return View(model);
             }
 
-            var user   = result.User!;
+            var user = result.User!;
             var claims = new List<Claim>
             {
                 new(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -67,13 +67,13 @@ namespace LetterTemplatePractice.Controllers
                 new(ClaimTypes.Role,           user.Role)
             };
 
-            var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
 
             var authProps = new AuthenticationProperties
             {
                 IsPersistent = model.RememberMe,
-                ExpiresUtc   = model.RememberMe
+                ExpiresUtc = model.RememberMe
                     ? DateTimeOffset.UtcNow.AddDays(30)
                     : DateTimeOffset.UtcNow.AddHours(8)
             };
@@ -168,10 +168,10 @@ namespace LetterTemplatePractice.Controllers
                 return RedirectToAction(nameof(Login));
             }
 
-            var googleId    = authenticateResult.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
-            var email       = authenticateResult.Principal.FindFirstValue(ClaimTypes.Email);
+            var googleId = authenticateResult.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            var email = authenticateResult.Principal.FindFirstValue(ClaimTypes.Email);
             var displayName = authenticateResult.Principal.FindFirstValue(ClaimTypes.Name);
-            var avatarUrl   = authenticateResult.Principal.FindFirstValue("urn:google:picture");
+            var avatarUrl = authenticateResult.Principal.FindFirstValue("urn:google:picture");
 
             await HttpContext.SignOutAsync("External");
 
@@ -200,7 +200,7 @@ namespace LetterTemplatePractice.Controllers
                 new(ClaimTypes.Role,           user.Role)
             };
 
-            var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
 
             await HttpContext.SignInAsync(

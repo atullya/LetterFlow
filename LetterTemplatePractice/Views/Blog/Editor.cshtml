@@ -645,8 +645,8 @@
 
     // Call AI endpoint directly and return the result.
     async function callAi(endpoint, text) {
-        const res = await fetch(`/api/ai/${endpoint}`, {
-            method: 'POST',
+                                    const res = await fetch(`/api/ai/${endpoint}`, {
+             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'RequestVerificationToken': antiForgeryToken()

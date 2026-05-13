@@ -546,6 +546,139 @@ namespace LetterTemplatePractice.Controllers
             return RedirectToAction(nameof(Details), new { slug = comment.Post.Slug });
         }
 
+        // ────────────────────────────── Reporting ──────────────────────────────
+
+        private const int ReportThreshold = 5;
+        private const int ReportRateLimitPerHour = 5;
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReportPost(int id, string? reason)
+        {
+            var reporterId = GetRequiredUserId();
+
+            var post = await _context.BlogPosts.FindAsync(id);
+            if (post == null)
+                return NotFound();
+
+            if (post.AuthorId == reporterId)
+            {
+                TempData["ErrorMessage"] = "You cannot report your own post.";
+                return RedirectToAction(nameof(Details), new { slug = post.Slug });
+            }
+
+            // Rate-limit: max ReportRateLimitPerHour reports per hour
+            var oneHourAgo = DateTime.UtcNow.AddHours(-1);
+            var recentCount = await _context.Reports
+                .CountAsync(r => r.ReporterId == reporterId && r.CreatedAt >= oneHourAgo);
+
+            if (recentCount >= ReportRateLimitPerHour)
+            {
+                TempData["ErrorMessage"] = "You have submitted too many reports recently. Please try again later.";
+                return RedirectToAction(nameof(Details), new { slug = post.Slug });
+            }
+
+            // Duplicate check
+            var alreadyReported = await _context.Reports
+                .AnyAsync(r => r.ReporterId == reporterId && r.TargetPostId == id);
+
+            if (alreadyReported)
+            {
+                TempData["ErrorMessage"] = "You have already reported this post.";
+                return RedirectToAction(nameof(Details), new { slug = post.Slug });
+            }
+
+            _context.Reports.Add(new Report
+            {
+                ReporterId   = reporterId,
+                TargetPostId = id,
+                Reason       = reason?.Trim(),
+                CreatedAt    = DateTime.UtcNow
+            });
+
+            // Auto-hide when unresolved report count reaches threshold
+            var unresolvedCount = await _context.Reports
+                .CountAsync(r => r.TargetPostId == id && !r.IsResolved);
+
+            if (unresolvedCount + 1 >= ReportThreshold)
+            {
+                post.IsHidden  = true;
+                post.UpdatedAt = DateTime.UtcNow;
+                _logger.LogWarning(Category,
+                    $"Post '{post.Title}' (id={id}) auto-hidden after reaching report threshold.",
+                    "/Blog/ReportPost", reporterId.ToString());
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Your report has been submitted. Thank you.";
+            return RedirectToAction(nameof(Details), new { slug = post.Slug });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReportUser(int userId, string? reason)
+        {
+            var reporterId = GetRequiredUserId();
+
+            if (userId == reporterId)
+            {
+                TempData["ErrorMessage"] = "You cannot report yourself.";
+                return RedirectToAction(nameof(Profile), new { username = User.Identity!.Name });
+            }
+
+            var targetUser = await _context.Users.FindAsync(userId);
+            if (targetUser == null)
+                return NotFound();
+
+            // Rate-limit
+            var oneHourAgo = DateTime.UtcNow.AddHours(-1);
+            var recentCount = await _context.Reports
+                .CountAsync(r => r.ReporterId == reporterId && r.CreatedAt >= oneHourAgo);
+
+            if (recentCount >= ReportRateLimitPerHour)
+            {
+                TempData["ErrorMessage"] = "You have submitted too many reports recently. Please try again later.";
+                return RedirectToAction(nameof(Profile), new { username = targetUser.Username });
+            }
+
+            // Duplicate check
+            var alreadyReported = await _context.Reports
+                .AnyAsync(r => r.ReporterId == reporterId && r.TargetUserId == userId);
+
+            if (alreadyReported)
+            {
+                TempData["ErrorMessage"] = "You have already reported this user.";
+                return RedirectToAction(nameof(Profile), new { username = targetUser.Username });
+            }
+
+            _context.Reports.Add(new Report
+            {
+                ReporterId   = reporterId,
+                TargetUserId = userId,
+                Reason       = reason?.Trim(),
+                CreatedAt    = DateTime.UtcNow
+            });
+
+            // Auto-hide profile when threshold reached
+            var unresolvedCount = await _context.Reports
+                .CountAsync(r => r.TargetUserId == userId && !r.IsResolved);
+
+            if (unresolvedCount + 1 >= ReportThreshold)
+            {
+                targetUser.IsHiddenProfile = true;
+                targetUser.UpdatedAt       = DateTime.UtcNow;
+                _logger.LogWarning(Category,
+                    $"User '{targetUser.Username}' (id={userId}) profile auto-hidden after reaching report threshold.",
+                    "/Blog/ReportUser", reporterId.ToString());
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Your report has been submitted. Thank you.";
+            return RedirectToAction(nameof(Profile), new { username = targetUser.Username });
+        }
+
         // ────────────────────────────── Profile ──────────────────────────────
 
         [AllowAnonymous]

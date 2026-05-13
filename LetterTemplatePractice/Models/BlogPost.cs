@@ -49,8 +49,12 @@ namespace LetterTemplatePractice.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        public bool IsHidden { get; set; } = false;
+
         public virtual ICollection<BlogComment> Comments { get; set; } = new List<BlogComment>();
 
         public virtual ICollection<BlogLike> Likes { get; set; } = new List<BlogLike>();
+
+        public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
     }
 }

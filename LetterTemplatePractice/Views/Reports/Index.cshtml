@@ -1,0 +1,370 @@
+@model List<LetterTemplatePractice.Models.Report>
+@{
+    ViewData["Title"] = "Reports";
+    var page      = (int)ViewBag.Page;
+    var pageSize  = (int)ViewBag.PageSize;
+    var total     = (int)ViewBag.Total;
+    var resolved  = (bool)ViewBag.Resolved;
+    var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+    int? filterUserId = ViewBag.UserId as int?;
+    int? filterPostId = ViewBag.PostId as int?;
+}
+
+<div class="reports-shell">
+    <div class="reports-header">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="reports-title">
+                <i class="fas fa-flag" style="color:#dc2626;margin-right:8px;"></i>
+                Reports
+            </h1>
+            <p class="reports-subtitle">Review and resolve user-submitted reports.</p>
+        </div>
+        <div class="reports-header-actions">
+            <a asp-action="Index" asp-route-resolved="false" class="btn @(!resolved ? "btn-primary" : "btn-secondary")">
+                Unresolved (@(resolved ? "?" : total.ToString()))
+            </a>
+            <a asp-action="Index" asp-route-resolved="true" class="btn @(resolved ? "btn-primary" : "btn-secondary")">
+                Resolved
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    @if (filterUserId.HasValue || filterPostId.HasValue)
+    {
+        <div class="filter-bar">
+            <span>Filtered by:
+                @if (filterUserId.HasValue) { <strong>User ID @filterUserId</strong> }
+                @if (filterPostId.HasValue) { <strong>Post ID @filterPostId</strong> }
+            </span>
+            <a asp-action="Index" asp-route-resolved="@resolved" class="btn btn-sm btn-secondary">Clear filter</a>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="reports-empty">
+            <i class="fas fa-check-circle" style="font-size:2rem;color:#16a34a;"></i>
+            <p>No @(resolved ? "resolved" : "unresolved") reports.</p>
+        </div>
+    }
+    else
+    {
+        <form method="post" asp-action="Resolve" asp-route-userId="@filterUserId" asp-route-postId="@filterPostId">
+            @Html.AntiForgeryToken()
+
+            <div class="reports-bulk-bar">
+                <label class="bulk-check-label">
+                    <input type="checkbox" id="selectAll" /> Select all
+                </label>
+                <div class="bulk-actions">
+                    <button type="submit" name="outcome" value="dismissed" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-times"></i> Dismiss selected
+                    </button>
+                    <button type="submit" name="outcome" value="confirmed" class="btn btn-sm btn-danger">
+                        <i class="fas fa-check"></i> Confirm selected
+                    </button>
+                </div>
+            </div>
+
+            <div class="reports-card">
+                <table class="reports-table">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;"></th>
+                            <th>Reporter</th>
+                            <th>Target</th>
+                            <th>Reason</th>
+                            <th>Submitted</th>
+                            @if (resolved)
+                            {
+                                <th>Outcome</th>
+                                <th>Resolved At</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @if (!r.IsResolved)
+                                    {
+                                        <input type="checkbox" name="reportIds" value="@r.Id" class="report-check" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (r.Reporter != null)
+                                    {
+                                        <a href="/@r.Reporter.Username" target="_blank">@@@r.Reporter.Username</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Deleted</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (r.Post != null)
+                                    {
+                                        <span class="target-type">Post</span>
+                                        <a asp-controller="Blog" asp-action="Details" asp-route-slug="@r.Post.Slug" target="_blank">
+                                            @r.Post.Title
+                                        </a>
+                                        @if (r.Post.IsHidden)
+                                        {
+                                            <span class="status-pill pill-hidden" style="margin-left:6px;">Hidden</span>
+                                        }
+                                    }
+                                    else if (r.TargetUser != null)
+                                    {
+                                        <span class="target-type">User</span>
+                                        <a href="/@r.TargetUser.Username" target="_blank">@@@r.TargetUser.Username</a>
+                                        @if (r.TargetUser.IsHiddenProfile)
+                                        {
+                                            <span class="status-pill pill-hidden" style="margin-left:6px;">Hidden</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Deleted</span>
+                                    }
+                                </td>
+                                <td class="reason-cell">
+                                    @(string.IsNullOrWhiteSpace(r.Reason) ? "—" : r.Reason)
+                                </td>
+                                <td class="date-cell">
+                                    @r.CreatedAt.ToString("MMM d, yyyy HH:mm")
+                                </td>
+                                @if (resolved)
+                                {
+                                    <td>
+                                        <span class="status-pill @(r.Outcome == "confirmed" ? "pill-danger" : "pill-ok")">
+                                            @r.Outcome
+                                        </span>
+                                    </td>
+                                    <td class="date-cell">
+                                        @(r.ResolvedAt.HasValue ? r.ResolvedAt.Value.ToString("MMM d, yyyy HH:mm") : "—")
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </form>
+
+        @if (totalPages > 1)
+        {
+            <div class="pagination-row">
+                @for (var p = 1; p <= totalPages; p++)
+                {
+                    <a asp-action="Index"
+                       asp-route-page="@p"
+                       asp-route-pageSize="@pageSize"
+                       asp-route-resolved="@resolved"
+                       asp-route-userId="@filterUserId"
+                       asp-route-postId="@filterPostId"
+                       class="page-btn @(p == page ? "page-btn-active" : "")">@p</a>
+                }
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+<style>
+.reports-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.reports-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 8px;
+}
+
+.reports-title    { margin: 4px 0 6px; font-size: 1.75rem; font-weight: 800; line-height: 1.15; }
+.reports-subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.reports-header-actions { display: flex; gap: 8px; align-items: center; }
+
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.875rem;
+}
+
+.reports-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.reports-bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+}
+
+.bulk-check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.bulk-actions { display: flex; gap: 8px; }
+
+.reports-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg, 12px);
+    overflow: hidden;
+}
+
+.reports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.reports-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface, #f9f9f9);
+}
+
+.reports-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+}
+
+.reports-table tr:last-child td { border-bottom: none; }
+.reports-table tr:hover td { background: var(--surface, #f9f9f9); }
+
+.target-type {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    margin-right: 6px;
+}
+
+.reason-cell {
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted);
+}
+
+.date-cell { white-space: nowrap; color: var(--muted); font-size: 0.8rem; }
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.pill-hidden  { background: #fee2e2; color: #dc2626; }
+.pill-visible { background: #dcfce7; color: #16a34a; }
+.pill-ok      { background: #dcfce7; color: #16a34a; }
+.pill-danger  { background: #fee2e2; color: #dc2626; }
+
+.btn-danger {
+    background: #dc2626;
+    color: #fff;
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-danger:hover { background: #b91c1c; border-color: #b91c1c; }
+
+.pagination-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    padding-top: 8px;
+}
+
+.page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text);
+    background: #fff;
+    transition: border-color 120ms;
+}
+
+.page-btn:hover { border-color: var(--text); }
+.page-btn-active { background: var(--text); color: #fff; border-color: var(--text); }
+
+@@media (max-width: 768px) {
+    .reports-shell { padding: 28px 16px 60px; }
+    .reports-header { flex-direction: column; }
+    .reason-cell { max-width: 140px; }
+}
+</style>
+
+<script>
+document.getElementById('selectAll')?.addEventListener('change', function () {
+    document.querySelectorAll('.report-check').forEach(cb => cb.checked = this.checked);
+});
+</script>
+}

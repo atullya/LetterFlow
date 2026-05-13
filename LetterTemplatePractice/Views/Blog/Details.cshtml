@@ -70,6 +70,15 @@
                 <i class="fab fa-x-twitter"></i>
                 <span>Share</span>
             </a>
+            @if (User.Identity?.IsAuthenticated == true && !Model.IsOwner)
+            {
+                <button type="button"
+                        class="article-action-button article-action-report"
+                        onclick="openReportPostModal(@Model.Post.Id, '@Html.Raw(Html.Encode(Model.Post.Title))')">
+                    <i class="fas fa-flag"></i>
+                    <span>Report</span>
+                </button>
+            }
         </div>
     </section>
 
@@ -170,6 +179,42 @@
 </article>
 
 @section Scripts {
+    @* ── Report Post Modal ── *@
+    @if (User.Identity?.IsAuthenticated == true && !Model.IsOwner)
+    {
+        <div id="reportPostModal" class="report-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reportPostModalTitle">
+            <div class="report-modal">
+                <div class="report-modal-header">
+                    <h2 class="report-modal-title" id="reportPostModalTitle">
+                        <i class="fas fa-flag" style="color:#dc2626;margin-right:8px;"></i>
+                        Report story
+                    </h2>
+                    <button type="button" class="report-modal-close" onclick="closeReportPostModal()" aria-label="Close">&times;</button>
+                </div>
+                <form method="post" asp-controller="Blog" asp-action="ReportPost" id="reportPostForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" id="reportPostId" value="@Model.Post.Id" />
+                    <div class="report-modal-body">
+                        <p class="report-modal-desc">
+                            Reporting <strong id="reportPostTitle">@Model.Post.Title</strong>.
+                            Your report is anonymous and will be reviewed by our team.
+                        </p>
+                        <label class="report-label" for="reportPostReason">Reason <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+                        <textarea id="reportPostReason" name="reason" rows="4"
+                                  class="report-textarea"
+                                  maxlength="500"
+                                  placeholder="Describe why you're reporting this story…"></textarea>
+                        <div class="report-char-count"><span id="reportPostCharCount">0</span> / 500</div>
+                    </div>
+                    <div class="report-modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeReportPostModal()">Cancel</button>
+                        <button type="submit" class="btn-danger-report">Submit report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
     <!-- Prism.js for codesample syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
@@ -235,5 +280,162 @@
                 }, 2000);
             });
         });
+
+        // ── Report Post modal ──────────────────────────────────────────────
+        function openReportPostModal(postId, title) {
+            document.getElementById('reportPostId').value = postId;
+            document.getElementById('reportPostTitle').textContent = title;
+            document.getElementById('reportPostReason').value = '';
+            document.getElementById('reportPostCharCount').textContent = '0';
+            const modal = document.getElementById('reportPostModal');
+            modal.classList.add('is-open');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('reportPostReason').focus();
+        }
+
+        function closeReportPostModal() {
+            document.getElementById('reportPostModal').classList.remove('is-open');
+            document.body.style.overflow = '';
+        }
+
+        document.getElementById('reportPostModal')?.addEventListener('click', function (e) {
+            if (e.target === this) closeReportPostModal();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeReportPostModal();
+        });
+
+        document.getElementById('reportPostReason')?.addEventListener('input', function () {
+            document.getElementById('reportPostCharCount').textContent = this.value.length;
+        });
     </script>
+
+    <style>
+        /* ── Report button in toolbar ── */
+        .article-action-report { color: #dc2626 !important; }
+        .article-action-report:hover { background: #fee2e2 !important; }
+
+        /* ── Report modal (shared with Profile) ── */
+        .report-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .report-modal-backdrop.is-open {
+            display: flex;
+        }
+
+        .report-modal {
+            background: #fff;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.18);
+            overflow: hidden;
+            animation: modalIn 180ms ease;
+        }
+
+        @@keyframes modalIn {
+            from { opacity: 0; transform: translateY(12px) scale(.97); }
+            to   { opacity: 1; transform: none; }
+        }
+
+        .report-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid var(--line, #e5e5e5);
+        }
+
+        .report-modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .report-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            line-height: 1;
+            color: var(--muted, #888);
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .report-modal-close:hover { color: var(--text, #111); }
+
+        .report-modal-body { padding: 18px 20px; }
+
+        .report-modal-desc {
+            font-size: 0.875rem;
+            color: var(--muted, #666);
+            margin: 0 0 14px;
+            line-height: 1.5;
+        }
+
+        .report-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .report-textarea {
+            width: 100%;
+            border: 1px solid var(--line, #e5e5e5);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.875rem;
+            resize: vertical;
+            font-family: inherit;
+            transition: border-color 140ms;
+            box-sizing: border-box;
+        }
+
+        .report-textarea:focus {
+            outline: none;
+            border-color: #dc2626;
+        }
+
+        .report-char-count {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--muted, #888);
+            margin-top: 4px;
+        }
+
+        .report-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 14px 20px 18px;
+            border-top: 1px solid var(--line, #e5e5e5);
+        }
+
+        .btn-danger-report {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            background: #dc2626;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 140ms;
+        }
+
+        .btn-danger-report:hover { background: #b91c1c; }
+    </style>
 }

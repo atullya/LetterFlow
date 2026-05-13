@@ -8,13 +8,15 @@ namespace LetterTemplatePractice.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<ApplicationUser> Users { get; set; }
-        public DbSet<BlogPost>        BlogPosts { get; set; }
-        public DbSet<Notebook>        Notebooks { get; set; }
-        public DbSet<BlogComment>     BlogComments { get; set; }
-        public DbSet<BlogLike>        BlogLikes { get; set; }
-        public DbSet<Follow>          Follows { get; set; }
-        public DbSet<Notification>    Notifications { get; set; }
-        public DbSet<AiJob>           AiJobs { get; set; }
+        public DbSet<BlogPost> BlogPosts { get; set; }
+        public DbSet<Notebook> Notebooks { get; set; }
+        public DbSet<BlogComment> BlogComments { get; set; }
+
+        public DbSet<BlogLike> BlogLikes { get; set; }
+        public DbSet<Follow> Follows { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<AiJob> AiJobs { get; set; }
+        public DbSet<Report> Reports { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -34,6 +36,7 @@ namespace LetterTemplatePractice.Data
                 e.HasIndex(u => u.GoogleId).IsUnique().HasFilter("\"GoogleId\" IS NOT NULL");
                 e.Property(u => u.Role).IsRequired().HasMaxLength(20).HasDefaultValue("User");
                 e.Property(u => u.IsActive).HasDefaultValue(true);
+                e.Property(u => u.IsHiddenProfile).HasDefaultValue(false);
             });
 
             modelBuilder.Entity<BlogPost>(e =>
@@ -48,6 +51,7 @@ namespace LetterTemplatePractice.Data
                 e.Property(p => p.ContentHtml).IsRequired();
                 e.HasIndex(p => p.Slug).IsUnique();
                 e.HasIndex(p => new { p.IsPublished, p.PublishedAt });
+                e.Property(p => p.IsHidden).HasDefaultValue(false);
                 e.HasOne(p => p.Author)
                     .WithMany(u => u.BlogPosts)
                     .HasForeignKey(p => p.AuthorId)
@@ -143,6 +147,48 @@ namespace LetterTemplatePractice.Data
                 e.HasOne(j => j.Owner).WithMany()
                     .HasForeignKey(j => j.OwnerUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<Report>(e =>
+            {
+                e.HasKey(r => r.Id);
+                e.Property(r => r.Reason).HasMaxLength(500);
+                e.Property(r => r.Outcome).HasMaxLength(20);
+                e.Property(r => r.IsResolved).HasDefaultValue(false);
+
+                // Reporter -> Reports (cascade: deleting reporter removes their reports)
+                e.HasOne(r => r.Reporter)
+                    .WithMany(u => u.ReportsSubmitted)
+                    .HasForeignKey(r => r.ReporterId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Report -> Post (cascade: deleting post removes its reports)
+                e.HasOne(r => r.Post)
+                    .WithMany(p => p.Reports)
+                    .HasForeignKey(r => r.TargetPostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Report -> TargetUser (cascade: deleting user removes reports against them)
+                e.HasOne(r => r.TargetUser)
+                    .WithMany(u => u.ReportsReceived)
+                    .HasForeignKey(r => r.TargetUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // ResolvedBy admin (set null if admin is deleted)
+                e.HasOne(r => r.ResolvedBy)
+                    .WithMany()
+                    .HasForeignKey(r => r.ResolvedById)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Unique: one report per reporter per post
+                e.HasIndex(r => new { r.ReporterId, r.TargetPostId })
+                    .IsUnique()
+                    .HasFilter("\"TargetPostId\" IS NOT NULL");
+
+                // Unique: one report per reporter per user
+                e.HasIndex(r => new { r.ReporterId, r.TargetUserId })
+                    .IsUnique()
+                    .HasFilter("\"TargetUserId\" IS NOT NULL");
             });
         }
     }

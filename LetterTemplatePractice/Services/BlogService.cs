@@ -23,7 +23,7 @@ namespace LetterTemplatePractice.Services
                 .Include(post => post.Author)
                 .Include(post => post.Comments)
                 .Include(post => post.Likes)
-                .Where(post => post.IsPublished)
+                .Where(post => post.IsPublished && !post.IsHidden)
                 .OrderByDescending(post => post.PublishedAt ?? post.UpdatedAt);
         }
 
