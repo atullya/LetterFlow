@@ -19,9 +19,33 @@
         body { background: var(--bg-page); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .auth-card { width: 100%; max-width: 420px; }
         .auth-logo { width: 52px; height: 52px; background: var(--primary); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; margin: 0 auto 16px; }
+        .loading-overlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+        }
+        .loading-overlay.active { opacity: 1; pointer-events: all; }
+        .loading-spinner {
+            width: 44px; height: 44px; border: 4px solid #e5e7eb; border-top-color: var(--primary);
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
+        .loading-overlay .loading-text { margin-top: 14px; font-weight: 600; color: var(--text-muted); font-size: 0.9rem; }
+        @@keyframes spin { to { transform: rotate(360deg); } }
+        .btn.loading { position: relative; pointer-events: none; opacity: 0.75; }
+        .btn.loading span { visibility: hidden; }
+        .btn.loading::after {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
+            margin: -9px 0 0 -9px; border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
     </style>
 </head>
 <body>
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Signing you in...</div>
+</div>
+
 <div class="auth-card">
     <div class="text-center mb-4">
         <div class="auth-logo"><i class="fas fa-feather-pointed"></i></div>
@@ -97,5 +121,33 @@
 
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+    var form = document.querySelector('form[asp-action="Login"]') || document.querySelector('form');
+    var submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+    var overlay = document.getElementById('loadingOverlay');
+    var submitted = false;
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (submitted) { e.preventDefault(); return; }
+            submitted = true;
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+            }
+            form.querySelectorAll('input').forEach(function (inp) { inp.readOnly = true; });
+            if (overlay) overlay.classList.add('active');
+        });
+    }
+
+    document.querySelectorAll('.btn-outline-dark').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (overlay) overlay.classList.add('active');
+            document.querySelectorAll('.btn').forEach(function (b) { b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
+        });
+    });
+})();
+</script>
 </body>
 </html>
