@@ -1,6 +1,7 @@
 @model LetterTemplatePractice.Models.ViewModels.BlogComposerViewModel
 @{
     ViewData["Title"]    = Model.Id.HasValue ? "Edit Story" : "Write Story";
+    ViewData["MetaDescription"] = "Write, edit, and publish professional newsletters on LetterFlow Stories with drafting, topics, notebooks, and AI writing tools.";
     ViewData["BodyClass"] = "editor-page";
     var isEditing = Model.Id.HasValue;
     var notebooks = ViewBag.NotebookOptions as IReadOnlyList<LetterTemplatePractice.Models.Notebook>
@@ -8,6 +9,7 @@
 }
 
 <div class="editor-shell-wrap">
+    <h1 class="visually-hidden">@(isEditing ? "Edit LetterFlow Story" : "Write LetterFlow Story")</h1>
 
     
     <div class="editor-topbar">

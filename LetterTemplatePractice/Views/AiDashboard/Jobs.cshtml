@@ -1,6 +1,7 @@
 @model Logging.PagedResult<LetterTemplatePractice.Models.AiJob>
 @{
     ViewData["Title"] = "AI Jobs";
+    ViewData["MetaDescription"] = "Review LetterFlow Stories AI jobs by status, owner, attempts, and queue activity for newsletter writing assistance.";
     var status   = ViewBag.Status   as string;
     var type     = ViewBag.Type     as string;
     var owner    = ViewBag.Owner    as string;
@@ -96,7 +97,7 @@
         {
             <div class="empty-state" style="padding:48px 0;">
                 <i class="fas fa-inbox" style="font-size:1.4rem;"></i>
-                <h5>No jobs found</h5>
+                <h2>No jobs found</h2>
                 <p>Try adjusting the filters.</p>
             </div>
         }
@@ -208,15 +209,15 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Job Detail</h5>
+                <h2 class="modal-title">Job Detail</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <h6>Input</h6>
+                <h3>Input</h3>
                 <pre class="ai-pre" id="modalInput"></pre>
-                <h6 class="mt-3">Result</h6>
+                <h3 class="mt-3">Result</h3>
                 <pre class="ai-pre" id="modalResult"></pre>
-                <h6 class="mt-3">Error</h6>
+                <h3 class="mt-3">Error</h3>
                 <pre class="ai-pre ai-pre-error" id="modalError"></pre>
             </div>
         </div>

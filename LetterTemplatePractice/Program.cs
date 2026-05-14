@@ -86,6 +86,29 @@ using (var scope = app.Services.CreateScope())
 
 await DataSeeder.SeedAsync(app.Services);
 
+// www -> non-www 301 redirect.
+app.Use(async (context, next) =>
+{
+    var host = context.Request.Host.Host;
+
+    if (host.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+    {
+        var newHost = host[4..];
+        var newUrl = string.Concat(
+            context.Request.Scheme,
+            "://",
+            newHost,
+            context.Request.Path,
+            context.Request.QueryString);
+
+        context.Response.StatusCode = StatusCodes.Status301MovedPermanently;
+        context.Response.Headers.Location = newUrl;
+        return;
+    }
+
+    await next();
+});
+
 // On startup: reset stuck InProgress jobs and fail exhausted ones
 using (var scope = app.Services.CreateScope())
 {

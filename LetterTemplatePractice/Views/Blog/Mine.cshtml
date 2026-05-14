@@ -1,6 +1,7 @@
 @model IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
 @{
     ViewData["Title"] = "Stories";
+    ViewData["MetaDescription"] = "Manage your LetterFlow Stories newsletters, drafts, published stories, notebooks, and professional writing workflow in one workspace.";
     var drafts    = Model.Where(p => !p.IsPublished).ToList();
     var published = Model.Where(p => p.IsPublished).ToList();
     var tab       = Context.Request.Query["tab"].ToString();

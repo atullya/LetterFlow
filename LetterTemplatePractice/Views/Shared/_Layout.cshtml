@@ -1,10 +1,35 @@
+@{
+    var pageTitle = ViewData["Title"]?.ToString() ?? "Home";
+    var metaDescriptionRaw = ViewData["MetaDescription"]?.ToString()
+        ?? "LetterFlow Stories is a professional newsletter platform to read, write, and publish stories with ease.";
+    var metaDescription = metaDescriptionRaw.Length > 160
+        ? metaDescriptionRaw[..157].TrimEnd() + "..."
+        : metaDescriptionRaw;
+    var canonicalUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}";
+    var ogImagePath = ViewData["OgImage"]?.ToString() ?? "/images/og-default.jpg";
+    var ogImageUrl = ogImagePath.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+        ? ogImagePath
+        : $"{Context.Request.Scheme}://{Context.Request.Host}{Url.Content($"~{ogImagePath}")}";
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - LetterFlow Stories</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23242424'/><text y='.9em' font-size='72' x='12' fill='white'>✒</text></svg>" />
+    <title>@pageTitle - LetterFlow Stories</title>
+    <meta name="description" content="@metaDescription" />
+    <link rel="canonical" href="@canonicalUrl" />
+    <meta property="og:title" content="@pageTitle - LetterFlow Stories" />
+    <meta property="og:description" content="@metaDescription" />
+    <meta property="og:image" content="@ogImageUrl" />
+    <meta property="og:url" content="@canonicalUrl" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LetterFlow Stories" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@pageTitle - LetterFlow Stories" />
+    <meta name="twitter:description" content="@metaDescription" />
+    <meta name="twitter:image" content="@ogImageUrl" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23242424'/><text y='.9em' font-size='48' x='16' fill='white'>LF</text></svg>" />
     <script type="importmap"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +39,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/LetterTemplatePractice.styles.css" asp-append-version="true" />
     <script>
-        // Restore sidebar state before first paint — prevents slide-in animation on navigation
+        // Restore sidebar state before first paint to prevent slide-in animation on navigation.
         if (sessionStorage.getItem('sidebarOpen') === '1') {
             document.documentElement.classList.add('sidebar-preopen');
         }
@@ -41,7 +66,7 @@
         if (_emailRaw.Contains('@'))
         {
             int _at = _emailRaw.IndexOf('@');
-            _emailMasked = _emailRaw[0] + new string('•', Math.Min(6, _at - 1)) + _emailRaw[_at..];
+            _emailMasked = _emailRaw[0] + new string('*', Math.Min(6, _at - 1)) + _emailRaw[_at..];
         }
     }
 }
@@ -49,7 +74,7 @@
 <div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
 <div class="app-shell">
 
-    <!-- Sidebar — hidden by default, toggled by hamburger -->
+    <!-- Sidebar: hidden by default, toggled by hamburger -->
     <aside class="sidebar" id="sidebar">
         <nav class="sidebar-nav">
             <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")"
@@ -104,7 +129,7 @@
 
     <header class="topbar">
         <div class="topbar-intro">
-            <!-- Hamburger — always visible, toggles sidebar -->
+            <!-- Hamburger: always visible, toggles sidebar -->
             <button class="topbar-hamburger" id="sidebarToggle" type="button" aria-label="Toggle navigation">
                 <span></span><span></span><span></span>
             </button>

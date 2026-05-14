@@ -1,7 +1,12 @@
 @model LetterTemplatePractice.Models.ViewModels.BlogDetailsViewModel
 @{
     ViewData["Title"] = Model.Post.Title;
+    ViewData["MetaDescription"] = Model.Post.Excerpt ?? $"Read \"{Model.Post.Title}\" on LetterFlow Stories. {Model.Post.ReadTimeMinutes} min read.";
     ViewData["BodyClass"] = "reader-mode";
+    if (!string.IsNullOrWhiteSpace(Model.Post.CoverImageUrl))
+    {
+        ViewData["OgImage"] = Model.Post.CoverImageUrl;
+    }
     var absoluteUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/stories/{Model.Post.Slug}";
 }
 
@@ -66,7 +71,7 @@
                 <i class="fas fa-link"></i>
                 <span>Copy link</span>
             </button>
-            <a class="article-action-button" href="https://twitter.com/intent/tweet?url=@Uri.EscapeDataString(absoluteUrl)&text=@Uri.EscapeDataString(Model.Post.Title)" target="_blank" rel="noreferrer">
+            <a class="article-action-button" href="https://twitter.com/intent/tweet?url=@Uri.EscapeDataString(absoluteUrl)&text=@Uri.EscapeDataString(Model.Post.Title)" target="_blank" rel="noopener noreferrer">
                 <i class="fab fa-x-twitter"></i>
                 <span>Share</span>
             </a>
@@ -131,7 +136,7 @@
             {
                 <div class="empty-state empty-state-compact">
                     <i class="fas fa-comment-dots"></i>
-                    <h5>No comments yet</h5>
+                    <h3>No comments yet</h3>
                     <p>Be the first reader to respond.</p>
                 </div>
             }
@@ -176,6 +181,16 @@
             </div>
         </section>
     }
+
+    <section class="reader-secondary-block">
+        <div class="reader-section-heading">
+            <h2>Writing resources</h2>
+        </div>
+        <a href="https://blog.hubspot.com/marketing/newsletter-tips"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="compact-story-link">Newsletter Best Practices</a>
+    </section>
 </article>
 
 @section Scripts {
@@ -439,3 +454,29 @@
         .btn-danger-report:hover { background: #b91c1c; }
     </style>
 }
+
+@{
+    var schemaImage = !string.IsNullOrWhiteSpace(Model.Post.CoverImageUrl)
+        ? $",\n  \"image\": \"{Model.Post.CoverImageUrl}\""
+        : "";
+}
+<script type="application/ld+json">
+{
+  "@@context": "https://schema.org",
+  "@@type": "Article",
+  "headline": "@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Post.Title).Trim('"'))",
+  "description": "@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Post.Excerpt ?? Model.Post.Subtitle ?? Model.Post.Title).Trim('"'))",
+  "author": {
+    "@@type": "Person",
+    "name": "@(Model.Post.Author?.DisplayName ?? Model.Post.Author?.Username ?? "LetterFlow")"
+  },
+  "publisher": {
+    "@@type": "Organization",
+    "name": "LetterFlow Stories",
+    "url": "https://letterflow-ps3k.onrender.com"
+  },
+  "url": "@absoluteUrl",
+  "datePublished": "@(Model.Post.PublishedAt?.ToString("yyyy-MM-dd") ?? Model.Post.CreatedAt.ToString("yyyy-MM-dd"))",
+  "dateModified": "@Model.Post.UpdatedAt.ToString("yyyy-MM-dd")"@Html.Raw(schemaImage)
+}
+</script>

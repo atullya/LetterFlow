@@ -1,12 +1,12 @@
 @model IReadOnlyList<LetterTemplatePractice.Models.BlogPost>
 @{
     ViewData["Title"] = "Explore";
+    ViewData["MetaDescription"] = "Browse LetterFlow Stories newsletters by topic, keyword, and author. Find professional stories, templates, and publishing ideas.";
     ViewData["HideNavSearch"] = true;   // suppress the duplicate navbar search bar
     var topic  = ViewBag.Topic  as string;
     var search = ViewBag.Search as string;
     var topics = ViewBag.Topics as IReadOnlyList<string> ?? [];
 }
-
 <div class="feed-layout">
     <main class="feed-main">
         <section class="feed-filter-bar">
@@ -70,6 +70,14 @@
                 </div>
             </section>
         }
+
+        <section class="rail-section">
+            <h2>Publishing guidance</h2>
+            <a href="https://www.campaignmonitor.com/resources/guides/email-marketing-new-rules/"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="rail-see-all">Email Marketing Guide</a>
+        </section>
     </aside>
 </div>
 

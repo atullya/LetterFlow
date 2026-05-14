@@ -1,6 +1,7 @@
 ﻿@model ErrorViewModel
 @{
     ViewData["Title"] = "Error";
+    ViewData["MetaDescription"] = "LetterFlow Stories error page for a request that could not be processed while reading, writing, or managing newsletters.";
 }
 
 <div style="display:flex;align-items:center;justify-content:center;min-height:60vh">
@@ -8,7 +9,7 @@
         <div style="font-size:4rem;color:var(--danger);margin-bottom:16px">
             <i class="fas fa-exclamation-circle"></i>
         </div>
-        <h2 style="font-weight:700;margin-bottom:8px">Something went wrong</h2>
+        <h1 style="font-weight:700;margin-bottom:8px">Something went wrong</h1>
         <p style="color:var(--text-muted);margin-bottom:24px">An error occurred while processing your request.</p>
 
         @if (Model?.ShowRequestId == true)

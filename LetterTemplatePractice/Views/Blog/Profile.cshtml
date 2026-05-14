@@ -1,7 +1,11 @@
 @model LetterTemplatePractice.Models.ViewModels.ProfileViewModel
 @{
     ViewData["Title"] = $"{Model.User.DisplayName ?? Model.User.Username} – LetterFlow";
+    ViewData["MetaDescription"] = $"View {Model.User.DisplayName ?? Model.User.Username}'s profile on LetterFlow Stories. {Model.Posts.Count} published stories.";
     var user = Model.User;
+    var profileName = user.DisplayName ?? user.Username;
+    ViewData["Title"] = $"{profileName} Profile";
+    ViewData["MetaDescription"] = $"View {profileName}'s LetterFlow Stories profile, published newsletters, follower counts, and professional writing activity.";
 }
 
 <div class="feed-layout">
@@ -60,7 +64,7 @@
 
         @* ── User's Posts ── *@
         <div class="profile-section-title" style="margin-top:32px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-            <span style="font-weight:700; font-size:1rem;">Stories</span>
+            <h2 style="font-weight:700; font-size:1rem; margin:0;">Stories</h2>
         </div>
 
         @if (!Model.Posts.Any())
@@ -82,7 +86,7 @@
 
     <aside class="feed-rail">
         <div class="rail-box" style="padding:16px;">
-            <div style="font-weight:700; margin-bottom:12px;">About</div>
+            <h2 style="font-weight:700; margin-bottom:12px; font-size:1rem;">About</h2>
             <div style="font-size:0.88rem; color:var(--muted); line-height:1.5;">
                 @(user.DisplayName ?? user.Username) has published @Model.Posts.Count stories on LetterFlow.
             </div>

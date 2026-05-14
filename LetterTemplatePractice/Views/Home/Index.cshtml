@@ -1,6 +1,7 @@
 @model LetterTemplatePractice.Models.ViewModels.HomeIndexViewModel
 @{
     ViewData["Title"] = "Home";
+    ViewData["MetaDescription"] = "LetterFlow Stories is a professional newsletter platform for reading, writing, and publishing newsletters, featured stories, and topics.";
     var activeTab = Context.Request.Query["tab"].ToString();
     if (string.IsNullOrEmpty(activeTab)) activeTab = "foryou";
     var search = Context.Request.Query["search"].ToString();
@@ -103,6 +104,14 @@
             <div class="rail-stat"><strong>@Model.WriterCount</strong><span>writers</span></div>
             <div class="rail-stat"><strong>@Model.CommentCount</strong><span>reader comments</span></div>
         </section>
+
+        <section class="rail-section">
+            <h2>Newsletter resources</h2>
+            <a href="https://blog.hubspot.com/marketing/newsletter-tips"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="rail-see-all">Newsletter Best Practices</a>
+        </section>
     </aside>
 </div>
 
@@ -190,3 +199,17 @@
 </script>
 }
 
+<script type="application/ld+json">
+{
+  "@@context": "https://schema.org",
+  "@@type": "WebSite",
+  "name": "LetterFlow Stories",
+  "url": "https://letterflow-ps3k.onrender.com/",
+  "description": "LetterFlow Stories helps you create professional newsletters with ease.",
+  "potentialAction": {
+    "@@type": "SearchAction",
+    "target": "https://letterflow-ps3k.onrender.com/Blog/Explore?search={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>

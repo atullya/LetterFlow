@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /Admin/
+Disallow: /account/
+Disallow: /Account/
+Disallow: /api/
+Disallow: /Api/
+
+Sitemap: https://letterflow-ps3k.onrender.com/sitemap.xml

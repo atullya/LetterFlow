@@ -1,6 +1,7 @@
 @model Logging.PagedResult<LetterTemplatePractice.Models.AiJob>
 @{
     ViewData["Title"] = "AI Error Feed";
+    ViewData["MetaDescription"] = "Review LetterFlow Stories AI error feed entries, failed newsletter assistant jobs, log details, and admin troubleshooting data.";
     var logLines = ViewBag.LogLines as List<string> ?? new List<string>();
     var from     = ViewBag.From     as DateTimeOffset?;
     var to       = ViewBag.To       as DateTimeOffset?;
@@ -80,7 +81,7 @@
         {
             <div class="empty-state" style="padding:48px 24px;">
                 <i class="fas fa-check-circle" style="font-size:2rem; color:#16a34a; margin-bottom:12px;"></i>
-                <h5>No errors</h5>
+                <h2>No errors</h2>
                 <p>All recent jobs completed successfully.</p>
             </div>
         }

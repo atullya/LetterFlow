@@ -1,7 +1,10 @@
 @model LetterTemplatePractice.Models.ViewModels.FollowListViewModel
 @{
     var tabLabel = char.ToUpper(Model.ActiveTab[0]) + Model.ActiveTab[1..];
+    var profileName = Model.ProfileUser.DisplayName ?? Model.ProfileUser.Username;
     ViewData["Title"] = $"{tabLabel} of {Model.ProfileUser.DisplayName ?? Model.ProfileUser.Username} – LetterFlow";
+    ViewData["MetaDescription"] = $"View the {Model.ActiveTab} list for {profileName} on LetterFlow Stories, including reader profiles and newsletter connections.";
+    ViewData["Title"] = $"{tabLabel} of {profileName}";
 }
 
 <div class="feed-layout">
@@ -16,6 +19,8 @@
         </div>
 
         @* ── Tabs ── *@
+        <h1>@tabLabel for @profileName</h1>
+
         <div class="fl-tabs" style="margin-bottom:24px;">
             <a class="fl-tab @(Model.ActiveTab == "followers" ? "fl-tab--active" : "")"
                href="@Url.Action("Followers", "Blog", new { username = Model.ProfileUser.Username })">
