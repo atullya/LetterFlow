@@ -1,0 +1,181 @@
+@{
+    ViewData["Title"] = "Reported Users";
+    ViewData["MetaDescription"] = "Review and manage reported users on LetterFlow Stories.";
+    var reportedUsers = ViewBag.ReportedUsers as List<LetterTemplatePractice.Models.ViewModels.ReportedUserViewModel>
+                        ?? new List<LetterTemplatePractice.Models.ViewModels.ReportedUserViewModel>();
+}
+
+<div class="ai-dash-shell">
+    <div class="ai-dash-header">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="ai-dash-title">
+                <i class="fas fa-flag" style="color:#dc2626;margin-right:10px;"></i>Reported Users
+            </h1>
+            <p class="ai-dash-subtitle">Users with unresolved reports. Click Review to inspect individual reports.</p>
+        </div>
+    </div>
+
+    <div class="ai-chart-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">
+                Users with Unresolved Reports
+                @if (reportedUsers.Any())
+                {
+                    <span class="report-badge badge-warn" style="margin-left:10px;">@reportedUsers.Count</span>
+                }
+            </span>
+            <a asp-controller="Reports" asp-action="Index" asp-area="" class="btn btn-sm btn-secondary">
+                View All Reports
+            </a>
+        </div>
+        <div class="ai-chart-body" style="padding:0;">
+            @if (!reportedUsers.Any())
+            {
+                <p style="padding:24px 20px;color:var(--muted);font-size:0.9rem;margin:0;">
+                    <i class="fas fa-check-circle" style="color:#16a34a;margin-right:6px;"></i>
+                    No reported users at this time.
+                </p>
+            }
+            else
+            {
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Unresolved Reports</th>
+                            <th>Profile Hidden</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in reportedUsers)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="/@u.Username" target="_blank">@@@u.Username</a>
+                                </td>
+                                <td>
+                                    <span class="report-badge @(u.UnresolvedCount >= 5 ? "badge-danger" : "badge-warn")">
+                                        @u.UnresolvedCount
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (u.IsHiddenProfile)
+                                    {
+                                        <span class="status-pill pill-hidden"><i class="fas fa-eye-slash"></i> Hidden</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-pill pill-visible"><i class="fas fa-eye"></i> Visible</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-controller="Reports" asp-action="Index"
+                                       asp-route-userId="@u.Id"
+                                       class="btn btn-sm btn-secondary">
+                                        Review
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+/* ── Shell (reuse AI Dashboard shell styles) ─────────────── */
+.ai-dash-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.ai-dash-header { padding-bottom: 8px; }
+.ai-dash-title  { margin: 4px 0 6px; font-size: 1.75rem; font-weight: 800; line-height: 1.15; }
+.ai-dash-subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.ai-chart-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.ai-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.ai-chart-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.report-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface, #f9f9f9);
+}
+
+.report-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+}
+
+.report-table tr:last-child td { border-bottom: none; }
+.report-table tr:hover td { background: var(--surface, #f9f9f9); }
+
+.report-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.badge-danger { background: #fee2e2; color: #dc2626; }
+.badge-warn   { background: #fef3c7; color: #b45309; }
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.pill-hidden  { background: #fee2e2; color: #dc2626; }
+.pill-visible { background: #dcfce7; color: #16a34a; }
+
+@@media (max-width: 768px) {
+    .ai-dash-shell { padding: 28px 16px 60px; }
+}
+</style>
+}

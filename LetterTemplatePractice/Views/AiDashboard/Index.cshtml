@@ -1,11 +1,9 @@
 @{
     ViewData["Title"] = "AI Dashboard";
-    ViewData["MetaDescription"] = "Monitor LetterFlow Stories AI dashboard jobs, Gemini queue health, errors, reported users, and newsletter automation status.";
+    ViewData["MetaDescription"] = "Monitor LetterFlow Stories AI dashboard jobs, Gemini queue health, errors, and newsletter automation status.";
     var counts = (Dictionary<string, int>)ViewBag.Counts;
     var succeeded24h = (int)ViewBag.Succeeded24h;
     var failed24h = (int)ViewBag.Failed24h;
-    var reportedUsers = ViewBag.ReportedUsers as List<LetterTemplatePractice.Models.ViewModels.ReportedUserViewModel>
-                        ?? new List<LetterTemplatePractice.Models.ViewModels.ReportedUserViewModel>();
 }
 
 <div class="ai-dash-shell">
@@ -86,70 +84,6 @@
         </div>
         <div class="ai-health-body" id="healthBody">
             <p class="ai-health-pending">Click "Check" to probe system health.</p>
-        </div>
-    </div>
-
-    <!-- Reported Users section -->
-    <div class="ai-chart-card">
-        <div class="ai-chart-header">
-            <span class="ai-chart-title">
-                <i class="fas fa-flag" style="color:#dc2626;margin-right:6px;"></i>
-                Reported Users
-            </span>
-            <a asp-controller="Reports" asp-action="Index" asp-area="" class="btn btn-sm btn-secondary">
-                View All Reports
-            </a>
-        </div>
-        <div class="ai-chart-body" style="padding:0;">
-            @if (!reportedUsers.Any())
-            {
-                <p style="padding:20px;color:var(--muted);font-size:0.9rem;margin:0;">No reported users at this time.</p>
-            }
-            else
-            {
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Unresolved Reports</th>
-                            <th>Profile Hidden</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var u in reportedUsers)
-                        {
-                            <tr>
-                                <td>
-                                    <a href="/@u.Username" target="_blank">@@@u.Username</a>
-                                </td>
-                                <td>
-                                    <span class="report-badge @(u.UnresolvedCount >= 5 ? "badge-danger" : "badge-warn")">
-                                        @u.UnresolvedCount
-                                    </span>
-                                </td>
-                                <td>
-                                    @if (u.IsHiddenProfile)
-                                    {
-                                        <span class="status-pill pill-hidden"><i class="fas fa-eye-slash"></i> Hidden</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="status-pill pill-visible"><i class="fas fa-eye"></i> Visible</span>
-                                    }
-                                </td>
-                                <td>
-                                    <a asp-controller="Reports" asp-action="Index"
-                                       asp-route-userId="@u.Id"
-                                       class="btn btn-sm btn-secondary">
-                                        Review
-                                    </a>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
         </div>
     </div>
 
@@ -340,58 +274,6 @@
 
 /* Bar chart via canvas */
 #volumeCanvas { width: 100%; }
-
-/* Report table */
-.report-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-
-.report-table th {
-    text-align: left;
-    padding: 10px 16px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--muted);
-    border-bottom: 1px solid var(--line);
-    background: var(--surface, #f9f9f9);
-}
-
-.report-table td {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--line);
-    vertical-align: middle;
-}
-
-.report-table tr:last-child td { border-bottom: none; }
-.report-table tr:hover td { background: var(--surface, #f9f9f9); }
-
-.report-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 700;
-}
-
-.badge-danger { background: #fee2e2; color: #dc2626; }
-.badge-warn   { background: #fef3c7; color: #b45309; }
-
-.status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 600;
-}
-
-.pill-hidden  { background: #fee2e2; color: #dc2626; }
-.pill-visible { background: #dcfce7; color: #16a34a; }
 
 /* Responsive */
 @@media (max-width: 768px) {

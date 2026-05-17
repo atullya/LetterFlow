@@ -38,7 +38,16 @@ namespace LetterTemplatePractice.Controllers.Admin
                 .CountAsync(j => j.Status == AiJobStatus.Failed
                                  && j.CompletedAt >= DateTimeOffset.UtcNow.AddHours(-24), ct);
 
-            // Reported users: top 50 with at least one unresolved report
+            ViewBag.Counts        = counts;
+            ViewBag.Succeeded24h  = recent24hSucceeded;
+            ViewBag.Failed24h     = recent24hFailed;
+
+            return View();
+        }
+
+        // GET /Admin/AiDashboard/ReportedUsers
+        public async Task<IActionResult> ReportedUsers(CancellationToken ct)
+        {
             var reportedUsers = await _db.Reports
                 .Where(r => r.TargetUserId != null && !r.IsResolved)
                 .GroupBy(r => r.TargetUserId!)
@@ -51,7 +60,6 @@ namespace LetterTemplatePractice.Controllers.Admin
                 .Take(50)
                 .ToListAsync(ct);
 
-            // Enrich with user details
             if (reportedUsers.Any())
             {
                 var userIds = reportedUsers.Select(x => x.Id).ToList();
@@ -71,11 +79,7 @@ namespace LetterTemplatePractice.Controllers.Admin
                 }
             }
 
-            ViewBag.Counts        = counts;
-            ViewBag.Succeeded24h  = recent24hSucceeded;
-            ViewBag.Failed24h     = recent24hFailed;
             ViewBag.ReportedUsers = reportedUsers;
-
             return View();
         }
 
