@@ -5,8 +5,10 @@ using LetterTemplatePractice.Models;
 using LetterTemplatePractice.Services;
 using Logging;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +76,50 @@ builder.Services.AddHealthChecks()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "LetterFlow API", Version = "v1" }));
+
+var rlSection = builder.Configuration.GetSection("RateLimiting");
+
+int aiPermit  = rlSection.GetValue("AiPerUser:PermitLimit",  20);
+int aiWindow  = rlSection.GetValue("AiPerUser:WindowSeconds", 60);
+int glPermit  = rlSection.GetValue("Global:PermitLimit",     200);
+int glWindow  = rlSection.GetValue("Global:WindowSeconds",    60);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("ai-per-user", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit          = aiPermit,
+                Window               = TimeSpan.FromSeconds(aiWindow),
+                SegmentsPerWindow    = 4,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit           = 0
+            }));
+
+    // Global IP-based sliding window for all traffic
+    options.AddPolicy("global", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit          = glPermit,
+                Window               = TimeSpan.FromSeconds(glWindow),
+                SegmentsPerWindow    = 4,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit           = 0
+            }));
+
+    options.OnRejected = async (ctx, ct) =>
+    {
+        ctx.HttpContext.Response.ContentType = "application/json";
+        await ctx.HttpContext.Response.WriteAsync(
+            """{"error":"Too many requests. Please slow down and try again shortly."}""", ct);
+    };
+});
 
 var app = builder.Build();
 
@@ -159,6 +205,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();

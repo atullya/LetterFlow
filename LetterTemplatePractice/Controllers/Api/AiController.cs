@@ -1,6 +1,7 @@
 using LetterTemplatePractice.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,6 +11,7 @@ namespace LetterTemplatePractice.Controllers.Api
     [Authorize]
     [ApiController]
     [Route("api/ai")]
+    [EnableRateLimiting("ai-per-user")]
     public sealed class AiController : ControllerBase
     {
         private readonly GeminiService _gemini;
