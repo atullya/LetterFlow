@@ -87,6 +87,62 @@
         </div>
     </div>
 
+    <!-- Newsletter section -->
+    <div class="ai-health-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">
+                <i class="fas fa-newspaper" style="margin-right:6px;color:var(--muted);"></i>
+                Daily Newsletter
+            </span>
+        </div>
+        <div class="ai-health-body" style="display:flex;flex-direction:column;gap:20px;">
+
+            @if (TempData["ToastMessage"] != null)
+            {
+                var toastType = TempData["ToastType"]?.ToString() ?? "success";
+                var toastColor = toastType == "success" ? "#16a34a" : toastType == "warn" ? "#b45309" : "#dc2626";
+                <div style="padding:10px 14px;border-radius:8px;background:#f9fafb;border:1px solid var(--line);
+                            font-size:0.875rem;color:@toastColor;font-weight:600;">
+                    @TempData["ToastMessage"]
+                </div>
+            }
+
+            <!-- Send now -->
+            <div>
+                <p style="margin:0 0 10px;font-size:0.875rem;font-weight:600;">Test Send</p>
+                <p style="margin:0 0 12px;font-size:0.825rem;color:var(--muted);">
+                    Immediately fetch today's top 5 stories and email all active subscribers.
+                    Normally runs automatically at <strong>@(ViewBag.SendHourUtc ?? 6):00 UTC</strong> daily.
+                </p>
+                <form asp-controller="Newsletter" asp-action="SendNow" asp-area="" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-primary"
+                            onclick="this.disabled=true;this.innerText='Sending…';this.form.submit();">
+                        <i class="fas fa-paper-plane"></i> Send Digest Now
+                    </button>
+                </form>
+            </div>
+
+            <div style="border-top:1px solid var(--line);padding-top:20px;">
+                <p style="margin:0 0 10px;font-size:0.875rem;font-weight:600;">Add Test Subscriber</p>
+                <p style="margin:0 0 12px;font-size:0.825rem;color:var(--muted);">
+                    Add an email address to the subscriber list to receive the digest.
+                </p>
+                <form asp-controller="Newsletter" asp-action="Subscribe" asp-area="" method="post"
+                      style="display:flex;gap:8px;flex-wrap:wrap;">
+                    @Html.AntiForgeryToken()
+                    <input type="email" name="email" required placeholder="you@example.com"
+                           style="flex:1;min-width:200px;padding:6px 12px;border:1px solid var(--line);
+                                  border-radius:8px;font-size:0.875rem;outline:none;" />
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-plus"></i> Subscribe
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
 </div>
 
 @section Scripts {

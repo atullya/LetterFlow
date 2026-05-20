@@ -1,11 +1,14 @@
 using System.Security.Claims;
 using LetterTemplatePractice.Auth;
+using LetterTemplatePractice.Data;
+using LetterTemplatePractice.Models;
 using Logging;
 using LetterTemplatePractice.Models.ViewModels;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LetterTemplatePractice.Controllers
 {
@@ -15,12 +18,14 @@ namespace LetterTemplatePractice.Controllers
         private readonly IAuthService _authService;
         private readonly IAppLogger   _logger;
         private readonly IWebHostEnvironment _env;
+        private readonly ApplicationDbContext _db;
 
-        public SettingsController(IAuthService authService, IAppLogger logger, IWebHostEnvironment env)
+        public SettingsController(IAuthService authService, IAppLogger logger, IWebHostEnvironment env, ApplicationDbContext db)
         {
             _authService = authService;
             _logger      = logger;
             _env         = env;
+            _db          = db;
         }
 
         private int CurrentUserId
@@ -43,12 +48,16 @@ namespace LetterTemplatePractice.Controllers
             var user = await _authService.GetUserByIdAsync(CurrentUserId);
             if (user is null) return NotFound();
 
+            var isSubscribed = await _db.NewsletterSubscriptions
+                .AnyAsync(s => s.UserId == CurrentUserId && s.IsActive);
+
             var vm = new ProfileSettingsViewModel
             {
-                Username       = user.Username,
-                Email          = user.Email,
-                DisplayName    = user.DisplayName,
-                CurrentAvatarUrl = user.AvatarUrl
+                Username              = user.Username,
+                Email                 = user.Email,
+                DisplayName           = user.DisplayName,
+                CurrentAvatarUrl      = user.AvatarUrl,
+                IsNewsletterSubscribed = isSubscribed
             };
             return View(vm);
         }
@@ -149,6 +158,49 @@ namespace LetterTemplatePractice.Controllers
 
             TempData["Success"] = "Profile photo updated.";
             return RedirectToAction(nameof(Index));
+        }
+
+        // POST /Settings/ToggleNewsletter
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleNewsletter(CancellationToken ct)
+        {
+            var user = await _authService.GetUserByIdAsync(CurrentUserId);
+            if (user is null) return NotFound();
+
+            var existing = await _db.NewsletterSubscriptions
+                .FirstOrDefaultAsync(s => s.UserId == CurrentUserId, ct);
+
+            if (existing == null)
+            {
+                // First time subscribing — create a new row
+                _db.NewsletterSubscriptions.Add(new NewsletterSubscription
+                {
+                    UserId           = CurrentUserId,
+                    Email            = user.Email,
+                    IsActive         = true,
+                    SubscribedAt     = DateTime.UtcNow,
+                    UnsubscribeToken = Guid.NewGuid().ToString("N")
+                });
+                TempData["NewsletterSuccess"] = "You're subscribed to the daily news digest.";
+            }
+            else if (existing.IsActive)
+            {
+                // Currently subscribed → unsubscribe
+                existing.IsActive       = false;
+                existing.UnsubscribedAt = DateTime.UtcNow;
+                TempData["NewsletterSuccess"] = "You've been unsubscribed from the daily digest.";
+            }
+            else
+            {
+                // Previously unsubscribed → re-subscribe, refresh email in case it changed
+                existing.IsActive       = true;
+                existing.Email          = user.Email;
+                existing.UnsubscribedAt = null;
+                TempData["NewsletterSuccess"] = "You're re-subscribed to the daily news digest.";
+            }
+
+            await _db.SaveChangesAsync(ct);
+            return RedirectToAction(nameof(Index), new { tab = "notifications" });
         }
 
         private async Task RefreshClaimsAsync(string username, string email)

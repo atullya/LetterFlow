@@ -17,6 +17,7 @@ namespace LetterTemplatePractice.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<AiJob> AiJobs { get; set; }
         public DbSet<Report> Reports { get; set; }
+        public DbSet<NewsletterSubscription> NewsletterSubscriptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -189,6 +190,20 @@ namespace LetterTemplatePractice.Data
                 e.HasIndex(r => new { r.ReporterId, r.TargetUserId })
                     .IsUnique()
                     .HasFilter("\"TargetUserId\" IS NOT NULL");
+            });
+
+            modelBuilder.Entity<NewsletterSubscription>(e =>
+            {
+                e.HasKey(s => s.Id);
+                e.Property(s => s.Email).IsRequired().HasMaxLength(100);
+                e.Property(s => s.UnsubscribeToken).IsRequired().HasMaxLength(64);
+                e.HasIndex(s => s.Email).IsUnique();
+                e.HasIndex(s => s.UnsubscribeToken).IsUnique();
+                e.Property(s => s.IsActive).HasDefaultValue(true);
+                e.HasOne(s => s.User)
+                    .WithMany()
+                    .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

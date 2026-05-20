@@ -3,8 +3,7 @@ using LetterTemplatePractice.BackgroundServices;
 using LetterTemplatePractice.Data;
 using LetterTemplatePractice.Models;
 using LetterTemplatePractice.Services;
-using Logging;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Logging;using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -68,6 +67,12 @@ builder.Services.AddScoped<GeminiService>();
 builder.Services.Configure<AiQueueOptions>(builder.Configuration.GetSection("AiQueue"));
 builder.Services.AddScoped<IAiQueue, AiQueueService>();
 builder.Services.AddHostedService<GeminiWorker>();
+
+// Newsletter — daily news digest
+builder.Services.AddHttpClient("news");
+builder.Services.AddScoped<NewsService>();
+builder.Services.AddScoped<NewsletterSender>();
+builder.Services.AddHostedService<NewsletterWorker>();
 
 // Health checks
 builder.Services.AddHealthChecks()

@@ -19,6 +19,9 @@ namespace LetterTemplatePractice.Models.ViewModels
         public string Email { get; set; } = string.Empty;
 
         public string? CurrentAvatarUrl { get; set; }
+
+        /// <summary>Whether the user is currently subscribed to the daily news digest.</summary>
+        public bool IsNewsletterSubscribed { get; set; }
     }
 
     public class ChangePasswordViewModel

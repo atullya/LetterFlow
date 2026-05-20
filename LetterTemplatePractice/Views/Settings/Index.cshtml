@@ -29,6 +29,9 @@
             <a href="#avatar" class="settings-nav-link" data-tab="avatar">
                 <i class="fas fa-image"></i> Photo
             </a>
+            <a href="#notifications" class="settings-nav-link" data-tab="notifications">
+                <i class="fas fa-bell"></i> Notifications
+            </a>
         </nav>
 
         <!-- RIGHT: panels -->
@@ -144,6 +147,54 @@
                 </form>
             </div>
 
+            <!-- Notifications panel -->
+            <div class="settings-panel" id="panel-notifications">
+                <h2 class="settings-panel-title">Notifications</h2>
+                <p class="settings-panel-sub">Manage what emails you receive from LetterFlow Stories.</p>
+
+                @if (TempData["NewsletterSuccess"] != null)
+                {
+                    <div class="alert-banner alert-banner-success">
+                        <i class="fas fa-check-circle"></i> @TempData["NewsletterSuccess"]
+                    </div>
+                }
+
+                <div class="notif-row">
+                    <div class="notif-info">
+                        <span class="notif-title">
+                            <i class="fas fa-newspaper" style="margin-right:6px;color:var(--muted);"></i>
+                            Daily News Digest
+                        </span>
+                        <span class="notif-desc">
+                            Receive a curated summary of today's top 5 news stories every morning.
+                            @if (Model.IsNewsletterSubscribed)
+                            {
+                                <span class="notif-badge notif-badge-on">Subscribed</span>
+                            }
+                            else
+                            {
+                                <span class="notif-badge notif-badge-off">Not subscribed</span>
+                            }
+                        </span>
+                    </div>
+                    <form asp-action="ToggleNewsletter" asp-controller="Settings" method="post">
+                        @Html.AntiForgeryToken()
+                        @if (Model.IsNewsletterSubscribed)
+                        {
+                            <button type="submit" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-bell-slash"></i> Unsubscribe
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-bell"></i> Subscribe
+                            </button>
+                        }
+                    </form>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -195,5 +246,60 @@
         document.querySelector('[data-tab="avatar"]').click();
         </text>
     }
+    @if (TempData["NewsletterSuccess"] != null || ViewContext.HttpContext.Request.Query["tab"] == "notifications")
+    {
+        <text>
+        document.querySelector('[data-tab="notifications"]').click();
+        </text>
+    }
 </script>
+
+<style>
+.notif-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: #fff;
+}
+
+.notif-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.notif-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.notif-desc {
+    font-size: 0.825rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.notif-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.notif-badge-on  { background: #dcfce7; color: #16a34a; }
+.notif-badge-off { background: #f3f4f6; color: #6b7280; }
+
+@@media (max-width: 480px) {
+    .notif-row { flex-direction: column; align-items: flex-start; }
+}
+</style>
 }
