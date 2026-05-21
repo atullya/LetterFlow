@@ -125,6 +125,11 @@
                         <i class="fas fa-flag"></i>
                         <span>Reported Users</span>
                     </a>
+                    <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Newsletter" ? "active" : "")"
+                       asp-controller="Newsletter" asp-action="Index">
+                        <i class="fas fa-newspaper"></i>
+                        <span>Newsletter</span>
+                    </a>
                 }
             }
         </nav>

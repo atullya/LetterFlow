@@ -30,16 +30,34 @@ namespace LetterTemplatePractice.Controllers.Admin
             _logger = logger;
         }
 
+        // GET /Admin/Newsletter
+        [HttpGet("")]
+        public async Task<IActionResult> Index(CancellationToken ct)
+        {
+            var subscribers = await _db.NewsletterSubscriptions
+                .Include(s => s.User)
+                .Where(s => s.IsActive)
+                .OrderByDescending(s => s.SubscribedAt)
+                .ToListAsync(ct);
+
+            ViewBag.Subscribers     = subscribers;
+            ViewBag.SubscriberCount = subscribers.Count;
+            ViewBag.SendHourUtc     = _config.GetValue<int>("Newsletter:SendHourUtc", 6);
+            return View();
+        }
+
         // POST /Admin/Newsletter/SendNow
-        // Triggers an immediate digest send — useful for testing.
         [HttpPost("SendNow")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendNow(CancellationToken ct)
         {
             var stories = await _news.GetTopStoriesAsync(5, ct);
             if (stories.Count == 0)
-                return RedirectToAction("Index", "AiDashboard",
-                    new { toast = "error", msg = "No stories fetched from API." });
+            {
+                TempData["ToastType"]    = "error";
+                TempData["ToastMessage"] = "No stories fetched from the API. Try again later.";
+                return RedirectToAction(nameof(Index));
+            }
 
             var subscribers = await _db.NewsletterSubscriptions
                 .Include(s => s.User)
@@ -47,8 +65,11 @@ namespace LetterTemplatePractice.Controllers.Admin
                 .ToListAsync(ct);
 
             if (subscribers.Count == 0)
-                return RedirectToAction("Index", "AiDashboard",
-                    new { toast = "warn", msg = "No active subscribers found." });
+            {
+                TempData["ToastType"]    = "warn";
+                TempData["ToastMessage"] = "No active subscribers found.";
+                return RedirectToAction(nameof(Index));
+            }
 
             var baseUrl = _config["Newsletter:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
             var sent    = await _sender.SendDigestAsync(subscribers, stories, baseUrl, ct);
@@ -57,11 +78,10 @@ namespace LetterTemplatePractice.Controllers.Admin
 
             TempData["ToastType"]    = sent > 0 ? "success" : "error";
             TempData["ToastMessage"] = $"Digest sent to {sent}/{subscribers.Count} subscribers.";
-            return RedirectToAction("Index", "AiDashboard");
+            return RedirectToAction(nameof(Index));
         }
 
         // POST /Admin/Newsletter/Subscribe
-        // Adds an email to the subscriber list (admin use / testing).
         [HttpPost("Subscribe")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Subscribe(string email, CancellationToken ct)
@@ -70,7 +90,7 @@ namespace LetterTemplatePractice.Controllers.Admin
             {
                 TempData["ToastType"]    = "error";
                 TempData["ToastMessage"] = "Email is required.";
-                return RedirectToAction("Index", "AiDashboard");
+                return RedirectToAction(nameof(Index));
             }
 
             email = email.Trim().ToLowerInvariant();
@@ -80,9 +100,8 @@ namespace LetterTemplatePractice.Controllers.Admin
 
             if (existing != null)
             {
-                // Re-activate if previously unsubscribed
-                existing.IsActive        = true;
-                existing.UnsubscribedAt  = null;
+                existing.IsActive       = true;
+                existing.UnsubscribedAt = null;
                 await _db.SaveChangesAsync(ct);
                 TempData["ToastType"]    = "success";
                 TempData["ToastMessage"] = $"{email} re-subscribed.";
@@ -91,20 +110,20 @@ namespace LetterTemplatePractice.Controllers.Admin
             {
                 _db.NewsletterSubscriptions.Add(new Models.NewsletterSubscription
                 {
-                    Email       = email,
-                    IsActive    = true,
-                    SubscribedAt = DateTime.UtcNow
+                    Email            = email,
+                    IsActive         = true,
+                    SubscribedAt     = DateTime.UtcNow,
+                    UnsubscribeToken = Guid.NewGuid().ToString("N")
                 });
                 await _db.SaveChangesAsync(ct);
                 TempData["ToastType"]    = "success";
                 TempData["ToastMessage"] = $"{email} subscribed.";
             }
 
-            return RedirectToAction("Index", "AiDashboard");
+            return RedirectToAction(nameof(Index));
         }
 
-        // GET /Newsletter/Unsubscribe?token=...
-        // Public unsubscribe link used in email footers.
+        // GET /Newsletter/Unsubscribe?token=...  (public — no auth required)
         [AllowAnonymous]
         [HttpGet("/Newsletter/Unsubscribe")]
         public async Task<IActionResult> Unsubscribe(string token, CancellationToken ct)

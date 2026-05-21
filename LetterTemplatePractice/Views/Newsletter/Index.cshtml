@@ -1,0 +1,218 @@
+@{
+    ViewData["Title"] = "Daily Newsletter";
+    ViewData["MetaDescription"] = "Manage and send the LetterFlow Stories daily news digest.";
+    var sendHour = (int)(ViewBag.SendHourUtc ?? 6);
+    var subscriberCount = (int)(ViewBag.SubscriberCount ?? 0);
+}
+
+<div class="ai-dash-shell">
+    <div class="ai-dash-header">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="ai-dash-title">
+                <i class="fas fa-newspaper" style="margin-right:10px;"></i>Daily Newsletter
+            </h1>
+            <p class="ai-dash-subtitle">
+                Manage subscribers and send the daily news digest.
+                Auto-sends at <strong>@sendHour:00 UTC</strong> every day.
+            </p>
+        </div>
+    </div>
+
+    <!-- Stat tiles -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#2563eb;">@subscriberCount</span>
+            <span class="ai-tile-label">Active Subscribers</span>
+        </div>
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#16a34a;">@sendHour:00</span>
+            <span class="ai-tile-label">Send Time (UTC)</span>
+        </div>
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#b45309;">5</span>
+            <span class="ai-tile-label">Stories Per Digest</span>
+        </div>
+    </div>
+
+    @if (TempData["ToastMessage"] != null)
+    {
+        var toastType  = TempData["ToastType"]?.ToString() ?? "success";
+        var toastColor = toastType == "success" ? "#16a34a" : toastType == "warn" ? "#b45309" : "#dc2626";
+        var toastBg    = toastType == "success" ? "#f0fdf4" : toastType == "warn" ? "#fffbeb" : "#fef2f2";
+        <div style="padding:12px 16px;border-radius:10px;background:@toastBg;
+                    border:1px solid var(--line);font-size:0.875rem;
+                    color:@toastColor;font-weight:600;">
+            <i class="fas @(toastType == "success" ? "fa-check-circle" : "fa-exclamation-circle")"
+               style="margin-right:6px;"></i>@TempData["ToastMessage"]
+        </div>
+    }
+
+    <!-- Send now -->
+    <div class="ai-health-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">
+                <i class="fas fa-paper-plane" style="margin-right:6px;color:var(--muted);"></i>
+                Test Send
+            </span>
+        </div>
+        <div class="ai-health-body">
+            <p style="margin:0 0 14px;font-size:0.875rem;color:var(--muted);">
+                Immediately fetch today's top 5 stories from KCha Khabar and email all
+                <strong>@subscriberCount active subscriber@(subscriberCount == 1 ? "" : "s")</strong>.
+                The digest normally runs automatically at <strong>@sendHour:00 UTC</strong> daily.
+            </p>
+            <form asp-controller="Newsletter" asp-action="SendNow" asp-area="" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-primary"
+                        onclick="this.disabled=true;this.innerText='Sending…';this.form.submit();">
+                    <i class="fas fa-paper-plane"></i> Send Digest Now
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add subscriber -->
+    <div class="ai-health-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">
+                <i class="fas fa-user-plus" style="margin-right:6px;color:var(--muted);"></i>
+                Add Subscriber
+            </span>
+        </div>
+        <div class="ai-health-body">
+            <p style="margin:0 0 14px;font-size:0.875rem;color:var(--muted);">
+                Manually add an email to the subscriber list. Users can also subscribe themselves
+                from <strong>Settings → Notifications</strong>.
+            </p>
+            <form asp-controller="Newsletter" asp-action="Subscribe" asp-area="" method="post"
+                  style="display:flex;gap:8px;flex-wrap:wrap;">
+                @Html.AntiForgeryToken()
+                <input type="email" name="email" required placeholder="someone@example.com"
+                       style="flex:1;min-width:220px;padding:8px 12px;border:1px solid var(--line);
+                              border-radius:8px;font-size:0.875rem;outline:none;" />
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fas fa-plus"></i> Subscribe
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subscriber list -->
+    <div class="ai-chart-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">
+                Active Subscribers
+                @if (subscriberCount > 0)
+                {
+                    <span style="margin-left:8px;background:#dbeafe;color:#2563eb;
+                                 font-size:0.75rem;font-weight:700;padding:2px 10px;
+                                 border-radius:999px;">@subscriberCount</span>
+                }
+            </span>
+        </div>
+        <div style="padding:0;">
+            @{
+                var subscribers = ViewBag.Subscribers as List<LetterTemplatePractice.Models.NewsletterSubscription>
+                                  ?? new List<LetterTemplatePractice.Models.NewsletterSubscription>();
+            }
+            @if (!subscribers.Any())
+            {
+                <p style="padding:24px 20px;color:var(--muted);font-size:0.875rem;margin:0;">
+                    No active subscribers yet. Add one above or ask users to subscribe from Settings.
+                </p>
+            }
+            else
+            {
+                <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;padding:10px 20px;font-size:0.75rem;font-weight:700;
+                                       text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+                                       border-bottom:1px solid var(--line);background:var(--surface,#f9f9f9);">Email</th>
+                            <th style="text-align:left;padding:10px 20px;font-size:0.75rem;font-weight:700;
+                                       text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+                                       border-bottom:1px solid var(--line);background:var(--surface,#f9f9f9);">User</th>
+                            <th style="text-align:left;padding:10px 20px;font-size:0.75rem;font-weight:700;
+                                       text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+                                       border-bottom:1px solid var(--line);background:var(--surface,#f9f9f9);">Subscribed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in subscribers)
+                        {
+                            <tr>
+                                <td style="padding:10px 20px;border-bottom:1px solid var(--line);">
+                                    @s.Email
+                                </td>
+                                <td style="padding:10px 20px;border-bottom:1px solid var(--line);color:var(--muted);">
+                                    @(s.User?.Username != null ? $"@{s.User.Username}" : "—")
+                                </td>
+                                <td style="padding:10px 20px;border-bottom:1px solid var(--line);color:var(--muted);">
+                                    @s.SubscribedAt.ToString("MMM d, yyyy")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<style>
+.ai-dash-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.ai-dash-header { padding-bottom: 8px; }
+.ai-dash-title  { margin: 4px 0 6px; font-size: 1.75rem; font-weight: 800; line-height: 1.15; }
+.ai-dash-subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.ai-tile {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+}
+.ai-tile-count { font-size: 2rem; font-weight: 800; line-height: 1; }
+.ai-tile-label  { font-size: 0.75rem; color: var(--muted); font-weight: 600;
+                  text-transform: uppercase; letter-spacing: .05em; }
+
+.ai-health-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+.ai-chart-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+.ai-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+}
+.ai-chart-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.ai-health-body { padding: 20px; }
+
+@@media (max-width: 768px) {
+    .ai-dash-shell { padding: 28px 16px 60px; }
+}
+</style>
+}

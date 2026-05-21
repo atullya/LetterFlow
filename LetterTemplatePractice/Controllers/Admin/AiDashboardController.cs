@@ -41,7 +41,6 @@ namespace LetterTemplatePractice.Controllers.Admin
             ViewBag.Counts        = counts;
             ViewBag.Succeeded24h  = recent24hSucceeded;
             ViewBag.Failed24h     = recent24hFailed;
-            ViewBag.SendHourUtc   = _config.GetValue<int>("Newsletter:SendHourUtc", 6);
 
             return View();
         }
