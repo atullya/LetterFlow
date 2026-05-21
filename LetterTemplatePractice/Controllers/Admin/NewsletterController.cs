@@ -51,33 +51,43 @@ namespace LetterTemplatePractice.Controllers.Admin
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendNow(CancellationToken ct)
         {
-            var stories = await _news.GetTopStoriesAsync(5, ct);
-            if (stories.Count == 0)
+            try
             {
+                var stories = await _news.GetTopStoriesAsync(5, ct);
+                if (stories.Count == 0)
+                {
+                    TempData["ToastType"]    = "error";
+                    TempData["ToastMessage"] = "No stories fetched from the API. Try again later.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var subscribers = await _db.NewsletterSubscriptions
+                    .Include(s => s.User)
+                    .Where(s => s.IsActive)
+                    .ToListAsync(ct);
+
+                if (subscribers.Count == 0)
+                {
+                    TempData["ToastType"]    = "warn";
+                    TempData["ToastMessage"] = "No active subscribers found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var baseUrl = _config["Newsletter:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
+                var sent    = await _sender.SendDigestAsync(subscribers, stories, baseUrl, ct);
+
+                _logger.LogInformation("Admin triggered newsletter send: {Sent}/{Total} delivered.", sent, subscribers.Count);
+
+                TempData["ToastType"]    = sent > 0 ? "success" : "error";
+                TempData["ToastMessage"] = $"Digest sent to {sent}/{subscribers.Count} subscribers.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Newsletter SendNow failed.");
                 TempData["ToastType"]    = "error";
-                TempData["ToastMessage"] = "No stories fetched from the API. Try again later.";
-                return RedirectToAction(nameof(Index));
+                TempData["ToastMessage"] = $"Send failed: {ex.Message}";
             }
 
-            var subscribers = await _db.NewsletterSubscriptions
-                .Include(s => s.User)
-                .Where(s => s.IsActive)
-                .ToListAsync(ct);
-
-            if (subscribers.Count == 0)
-            {
-                TempData["ToastType"]    = "warn";
-                TempData["ToastMessage"] = "No active subscribers found.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var baseUrl = _config["Newsletter:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
-            var sent    = await _sender.SendDigestAsync(subscribers, stories, baseUrl, ct);
-
-            _logger.LogInformation("Admin triggered newsletter send: {Sent}/{Total} delivered.", sent, subscribers.Count);
-
-            TempData["ToastType"]    = sent > 0 ? "success" : "error";
-            TempData["ToastMessage"] = $"Digest sent to {sent}/{subscribers.Count} subscribers.";
             return RedirectToAction(nameof(Index));
         }
 
