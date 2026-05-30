@@ -101,7 +101,7 @@
                 </div>
                 <div class="editor-meta-field editor-meta-field--wide" id="scheduleField" style="@(Model.UseScheduling ? "" : "display:none")">
                     <label class="editor-meta-label">Publish on <span class="editor-meta-hint">— your local time</span></label>
-                    <input type="datetime-local" id="ScheduledAtInput" style="max-width: 220px; class="editor-meta-input" value="@(Model.ScheduledAt?.ToString("yyyy-MM-ddTHH:mm") ?? "")" />
+                    <input type="datetime-local" id="ScheduledAtInput" style="max-width: 220px; class="editor-meta-input" value="@(Model.ScheduledAt?.ToString("yyyy-MM-ddTHH:mm") ?? "")" min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
                     <input type="hidden" id="ScheduledAt" name="ScheduledAt" value="@(Model.ScheduledAt?.ToString("o") ?? "")" />
                     <span id="scheduleValidation" class="editor-field-error"></span>
                 </div>
@@ -673,7 +673,15 @@
         btnSaveDraft.style.display = enabled ? 'none' : '';
         btnPublish.style.display = enabled ? 'none' : '';
         btnSchedule.style.display = enabled ? '' : 'none';
-        if (!enabled) {
+        if (enabled) {
+            var now = new Date();
+            var pad = n => String(n).padStart(2, '0');
+            scheduledAtInput.min = now.getFullYear() + '-' +
+                pad(now.getMonth() + 1) + '-' +
+                pad(now.getDate()) + 'T' +
+                pad(now.getHours()) + ':' +
+                pad(now.getMinutes());
+        } else {
             scheduledAtInput.value = '';
             scheduledAtHidden.value = '';
         }
