@@ -266,6 +266,9 @@ namespace LetterTemplatePractice.Migrations
                     b.Property<int>("ReadTimeMinutes")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(180)
@@ -300,6 +303,8 @@ namespace LetterTemplatePractice.Migrations
                         .IsUnique();
 
                     b.HasIndex("IsPublished", "PublishedAt");
+
+                    b.HasIndex("IsPublished", "ScheduledAt");
 
                     b.ToTable("BlogPosts");
                 });

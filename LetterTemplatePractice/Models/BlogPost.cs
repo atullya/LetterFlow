@@ -41,6 +41,8 @@ namespace LetterTemplatePractice.Models
 
         public DateTime? PublishedAt { get; set; }
 
+        public DateTime? ScheduledAt { get; set; }
+
         public int ReadTimeMinutes { get; set; } = 1;
 
         public int ViewCount { get; set; }

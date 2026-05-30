@@ -162,6 +162,15 @@ namespace LetterTemplatePractice.Controllers
 
             var userId = GetRequiredUserId();
             var isPublished = string.Equals(model.SubmitAction, "publish", StringComparison.OrdinalIgnoreCase) || model.IsPublished;
+            var isScheduled = string.Equals(model.SubmitAction, "schedule", StringComparison.OrdinalIgnoreCase) && model.ScheduledAt.HasValue;
+
+            if (isScheduled && model.ScheduledAt!.Value <= DateTime.UtcNow)
+            {
+                ModelState.AddModelError("ScheduledAt", "Scheduled time must be in the future.");
+                await PopulateNotebookOptionsAsync();
+                return View("Editor", model);
+            }
+
             var slug = await _blogService.GenerateUniqueSlugAsync(model.Title);
             var notebookId = await ResolveNotebookIdAsync(model.NotebookId, userId);
 
@@ -179,6 +188,7 @@ namespace LetterTemplatePractice.Controllers
                 IsPublished = isPublished,
                 IsFeatured = model.IsFeatured && User.IsInRole(UserRoles.Admin),
                 PublishedAt = isPublished ? DateTime.UtcNow : null,
+                ScheduledAt = isScheduled ? model.ScheduledAt : null,
                 ReadTimeMinutes = _blogService.EstimateReadTimeMinutes(model.ContentHtml),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -219,7 +229,9 @@ namespace LetterTemplatePractice.Controllers
                 Topic = post.Topic,
                 ContentHtml = post.ContentHtml,
                 IsPublished = post.IsPublished,
-                IsFeatured = post.IsFeatured
+                IsFeatured = post.IsFeatured,
+                UseScheduling = post.ScheduledAt.HasValue,
+                ScheduledAt = post.ScheduledAt
             });
         }
 
@@ -246,6 +258,15 @@ namespace LetterTemplatePractice.Controllers
             }
 
             var shouldPublish = string.Equals(model.SubmitAction, "publish", StringComparison.OrdinalIgnoreCase) || model.IsPublished;
+            var shouldSchedule = string.Equals(model.SubmitAction, "schedule", StringComparison.OrdinalIgnoreCase) && model.ScheduledAt.HasValue;
+
+            if (shouldSchedule && model.ScheduledAt!.Value <= DateTime.UtcNow)
+            {
+                ModelState.AddModelError("ScheduledAt", "Scheduled time must be in the future.");
+                model.Id = id;
+                await PopulateNotebookOptionsAsync();
+                return View("Editor", model);
+            }
 
             post.NotebookId = await ResolveNotebookIdAsync(model.NotebookId, post.AuthorId);
             post.Title = model.Title.Trim();
@@ -257,6 +278,7 @@ namespace LetterTemplatePractice.Controllers
             post.IsFeatured = model.IsFeatured && User.IsInRole(UserRoles.Admin);
             post.IsPublished = shouldPublish;
             post.PublishedAt = shouldPublish ? post.PublishedAt ?? DateTime.UtcNow : null;
+            post.ScheduledAt = shouldSchedule ? model.ScheduledAt : null;
             post.ReadTimeMinutes = _blogService.EstimateReadTimeMinutes(model.ContentHtml);
             post.Slug = await _blogService.GenerateUniqueSlugAsync(post.Title, post.Id);
             post.UpdatedAt = DateTime.UtcNow;

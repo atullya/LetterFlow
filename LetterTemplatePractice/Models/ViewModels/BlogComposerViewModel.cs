@@ -32,6 +32,10 @@ namespace LetterTemplatePractice.Models.ViewModels
 
         public bool IsFeatured { get; set; }
 
+        public bool UseScheduling { get; set; }
+
+        public DateTime? ScheduledAt { get; set; }
+
         public string SubmitAction { get; set; } = "draft";
     }
 }

@@ -6,6 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- FIX: Added to prevent MSBuild from recursively looping inside build-output folders -->
+  <ItemGroup>
+    <Content Remove="build-output\**" />
+    <None Remove="build-output\**" />
+    <Content Remove="bin\**;obj\**" />
+    <None Remove="bin\**;obj\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="MailKit" Version="4.16.0" />

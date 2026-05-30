@@ -2,7 +2,8 @@
 @{
     ViewData["Title"] = "Stories";
     ViewData["MetaDescription"] = "Manage your LetterFlow Stories newsletters, drafts, published stories, notebooks, and professional writing workflow in one workspace.";
-    var drafts    = Model.Where(p => !p.IsPublished).ToList();
+    var drafts    = Model.Where(p => !p.IsPublished && p.ScheduledAt == null).ToList();
+    var scheduled = Model.Where(p => !p.IsPublished && p.ScheduledAt != null).ToList();
     var published = Model.Where(p => p.IsPublished).ToList();
     var tab       = Context.Request.Query["tab"].ToString();
     if (string.IsNullOrEmpty(tab)) tab = "drafts";
@@ -113,7 +114,8 @@
         var scopedPosts = selectedNotebook == null
             ? Model.ToList()
             : Model.Where(post => post.NotebookId == selectedNotebook.Id).ToList();
-        drafts = scopedPosts.Where(p => !p.IsPublished).ToList();
+        drafts = scopedPosts.Where(p => !p.IsPublished && p.ScheduledAt == null).ToList();
+        scheduled = scopedPosts.Where(p => !p.IsPublished && p.ScheduledAt != null).ToList();
         published = scopedPosts.Where(p => p.IsPublished).ToList();
     }
 
@@ -123,6 +125,12 @@
            asp-route-tab="drafts"
            class="stories-tab @(tab == "drafts" ? "active" : "")">
             Drafts <span class="stories-tab-count">@drafts.Count</span>
+        </a>
+        <a asp-action="Mine"
+           asp-route-notebookId="@selectedNotebookId"
+           asp-route-tab="scheduled"
+           class="stories-tab @(tab == "scheduled" ? "active" : "")">
+            Scheduled <span class="stories-tab-count">@scheduled.Count</span>
         </a>
         <a asp-action="Mine"
            asp-route-notebookId="@selectedNotebookId"
@@ -139,7 +147,7 @@
     </div>
 
     @{
-        var activeList = tab == "published" ? published : drafts;
+        var activeList = tab == "published" ? published : tab == "scheduled" ? scheduled : drafts;
     }
 
     @if (!activeList.Any())
@@ -184,8 +192,19 @@
                     </div>
 
                     <!-- Status -->
-                    <span class="stories-col-status stories-status-@(post.IsPublished ? "published" : "draft")">
-                        @(post.IsPublished ? "Published" : "Draft")
+                    <span class="stories-col-status stories-status-@(post.IsPublished ? "published" : post.ScheduledAt.HasValue ? "scheduled" : "draft")">
+                        @if (post.IsPublished)
+                        {
+                            @:Published
+                        }
+                        else if (post.ScheduledAt.HasValue)
+                        {
+                            @:Scheduled for @post.ScheduledAt.Value.ToString("MMM d, h:mm tt")
+                        }
+                        else
+                        {
+                            @:Draft
+                        }
                     </span>
 
                     <!-- Three-dot menu -->

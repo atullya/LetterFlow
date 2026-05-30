@@ -1093,6 +1093,7 @@ textarea { resize: vertical; }
 .stories-row-meta { font-size: 0.8rem; color: var(--muted); }
 .stories-status-published { color: var(--text); font-size: 0.8rem; }
 .stories-status-draft      { color: var(--muted); font-size: 0.8rem; }
+.stories-status-scheduled  { color: #2563eb; font-size: 0.8rem; }
 .stories-empty { padding: 40px 0; color: var(--muted); font-size: 0.92rem; }
 .stories-empty a { color: var(--text); }
 

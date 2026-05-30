@@ -72,6 +72,7 @@ builder.Services.AddHostedService<GeminiWorker>();
 builder.Services.AddHttpClient("news");
 builder.Services.AddScoped<NewsService>();
 builder.Services.AddScoped<NewsletterSender>();
+builder.Services.AddHostedService<ScheduledPostPublisher>();
 builder.Services.AddHostedService<NewsletterWorker>();
 
 // Health checks

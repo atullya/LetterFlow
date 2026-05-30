@@ -19,13 +19,16 @@
         </a>
         <span class="editor-topbar-title">@(isEditing ? "Editing story" : "New story")</span>
         <span class="editor-draft-indicator" id="draftIndicator"></span>
-        <div class="editor-topbar-actions">
-            <button type="submit" form="editorForm" name="SubmitAction" value="draft" class="btn btn-secondary btn-sm">
+        <div class="editor-topbar-actions" id="topbarActions">
+            <button type="submit" form="editorForm" name="SubmitAction" value="draft" class="btn btn-secondary btn-sm" id="btnSaveDraft">
                 <i class="fas fa-floppy-disk"></i> Save Draft
             </button>
-            <button type="submit" form="editorForm" name="SubmitAction" value="publish" class="btn btn-primary btn-sm">
+            <button type="submit" form="editorForm" name="SubmitAction" value="publish" class="btn btn-primary btn-sm" id="btnPublish">
                 <i class="fas fa-rocket"></i>
                 @(Model.IsPublished ? "Update" : "Publish")
+            </button>
+            <button type="submit" form="editorForm" name="SubmitAction" value="schedule" class="btn btn-primary btn-sm" id="btnSchedule" style="display:none">
+                <i class="fas fa-clock"></i> Schedule
             </button>
         </div>
     </div>
@@ -88,6 +91,19 @@
                             </label>
                         </div>
                     }
+                </div>
+
+                <div class="editor-meta-field editor-meta-field--check">
+                    <label class="editor-check-label">
+                        <input type="checkbox" id="UseScheduling" name="UseScheduling" value="true" class="editor-check-input" @(Model.UseScheduling ? "checked" : "") />
+                        <span>Schedule for later</span>
+                    </label>
+                </div>
+                <div class="editor-meta-field editor-meta-field--wide" id="scheduleField" style="@(Model.UseScheduling ? "" : "display:none")">
+                    <label class="editor-meta-label">Publish on <span class="editor-meta-hint">— your local time</span></label>
+                    <input type="datetime-local" id="ScheduledAtInput" style="max-width: 220px; class="editor-meta-input" value="@(Model.ScheduledAt?.ToString("yyyy-MM-ddTHH:mm") ?? "")" />
+                    <input type="hidden" id="ScheduledAt" name="ScheduledAt" value="@(Model.ScheduledAt?.ToString("o") ?? "")" />
+                    <span id="scheduleValidation" class="editor-field-error"></span>
                 </div>
 
                 <div class="editor-divider"></div>
@@ -640,6 +656,59 @@
 
     // ── Clear draft when form is submitted ────────────────────────────────────
     document.getElementById('editorForm')?.addEventListener('submit', clearDraft);
+
+    // ── Schedule toggle ──────────────────────────────────────────────────────
+    const useSchedulingCheckbox = document.getElementById('UseScheduling');
+    const scheduleField = document.getElementById('scheduleField');
+    const scheduledAtInput = document.getElementById('ScheduledAtInput');
+    const scheduledAtHidden = document.getElementById('ScheduledAt');
+    const scheduleValidation = document.getElementById('scheduleValidation');
+    const btnSaveDraft = document.getElementById('btnSaveDraft');
+    const btnPublish = document.getElementById('btnPublish');
+    const btnSchedule = document.getElementById('btnSchedule');
+
+    function updateScheduleUI() {
+        const enabled = useSchedulingCheckbox?.checked ?? false;
+        scheduleField.style.display = enabled ? '' : 'none';
+        btnSaveDraft.style.display = enabled ? 'none' : '';
+        btnPublish.style.display = enabled ? 'none' : '';
+        btnSchedule.style.display = enabled ? '' : 'none';
+        if (!enabled) {
+            scheduledAtInput.value = '';
+            scheduledAtHidden.value = '';
+        }
+    }
+
+    useSchedulingCheckbox?.addEventListener('change', updateScheduleUI);
+
+    scheduledAtInput?.addEventListener('change', function () {
+        if (this.value) {
+            const dt = new Date(this.value);
+            scheduledAtHidden.value = dt.toISOString();
+            scheduleValidation.textContent = '';
+        } else {
+            scheduledAtHidden.value = '';
+        }
+    });
+
+    btnSchedule?.addEventListener('click', function (e) {
+        const val = scheduledAtInput.value;
+        if (!val) {
+            e.preventDefault();
+            scheduleValidation.textContent = 'Please select a date and time.';
+            return;
+        }
+        const dt = new Date(val);
+        if (dt <= new Date()) {
+            e.preventDefault();
+            scheduleValidation.textContent = 'Scheduled time must be in the future.';
+            return;
+        }
+        scheduleValidation.textContent = '';
+    });
+
+    // Run on page load in case editing an already-scheduled post
+    updateScheduleUI();
 
     // ── AI helpers ────────────────────────────────────────────────────────────
     const antiForgeryToken = () =>

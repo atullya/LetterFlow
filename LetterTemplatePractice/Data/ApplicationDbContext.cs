@@ -52,6 +52,7 @@ namespace LetterTemplatePractice.Data
                 e.Property(p => p.ContentHtml).IsRequired();
                 e.HasIndex(p => p.Slug).IsUnique();
                 e.HasIndex(p => new { p.IsPublished, p.PublishedAt });
+                e.HasIndex(p => new { p.IsPublished, p.ScheduledAt });
                 e.Property(p => p.IsHidden).HasDefaultValue(false);
                 e.HasOne(p => p.Author)
                     .WithMany(u => u.BlogPosts)
