@@ -1,0 +1,1063 @@
+@{
+    ViewData["Title"] = "User Analytics";
+    ViewData["MetaDescription"] = "LetterFlow Stories admin — user analytics with views, claps, read time, scroll depth tracking, and traffic sources.";
+}
+
+<div class="ua-shell" id="uaApp">
+
+    <!-- ── Topbar ─────────────────────────────────────────────────────────── -->
+    <div class="ua-topbar">
+        <div class="ua-topbar-left">
+            <span class="ua-eyebrow">Admin</span>
+            <h1 class="ua-title">User Analytics</h1>
+            <p class="ua-subtitle">Analyze every registered user's blog performance — views, claps, read time, and scroll engagement.</p>
+        </div>
+        <div class="ua-topbar-right">
+            <button class="ua-toggle-panel" id="uaToggleUsers" title="Toggle user list" aria-label="Toggle user list" type="button">
+                <i class="fas fa-users"></i>
+            </button>
+            <div class="ua-search-wrap" id="uaSearchWrap">
+                <i class="fas fa-search ua-search-icon"></i>
+                <input type="text" id="uaSearch" class="ua-search-input" placeholder="Search by name or email…" autocomplete="off" />
+            </div>
+            <div class="ua-range-selector">
+                <button class="ua-range-btn active" data-range="7d" type="button">7d</button>
+                <button class="ua-range-btn" data-range="30d" type="button">30d</button>
+                <button class="ua-range-btn" data-range="90d" type="button">90d</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnExportCSV" title="Export CSV" type="button">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    <aside class="ua-user-panel" id="uaUserPanel">
+            <div class="ua-user-panel-inner">
+                <div class="ua-user-panel-label">Users</div>
+                <div class="ua-table-card" id="uaTableCard">
+                    <div class="ua-table-header">
+                        <div class="ua-th ua-th-user sortable" data-sort="name">
+                            User <i class="fas fa-sort"></i>
+                        </div>
+                        <div class="ua-th ua-th-num sortable" data-sort="posts">
+                            Posts <i class="fas fa-sort"></i>
+                        </div>
+                        <div class="ua-th ua-th-num sortable" data-sort="views">
+                            Views <i class="fas fa-sort"></i>
+                        </div>
+                        <div class="ua-th ua-th-num sortable" data-sort="claps">
+                            Claps <i class="fas fa-sort"></i>
+                        </div>
+                        <div class="ua-th ua-th-num sortable" data-sort="readtime">
+                            Read <i class="fas fa-sort"></i>
+                        </div>
+                        <div class="ua-th ua-th-num sortable" data-sort="joined">
+                            Joined <i class="fas fa-sort"></i>
+                        </div>
+                    </div>
+                    <div class="ua-table-body" id="uaTableBody">
+                        <div class="ua-table-skeleton">
+                            <div class="skeleton-row" style="height:48px"></div>
+                            <div class="skeleton-row" style="height:48px"></div>
+                            <div class="skeleton-row" style="height:48px"></div>
+                            <div class="skeleton-row" style="height:48px"></div>
+                            <div class="skeleton-row" style="height:48px"></div>
+                        </div>
+                    </div>
+                    <div class="ua-pagination" id="uaPagination"></div>
+                </div>
+            </div>
+        </aside>
+    <!-- ── Two-column content ─────────────────────────────────────────────── -->
+    <div class="ua-content" id="uaContent">
+
+        <!-- LEFT: collapsible user list panel (230px) -->
+        
+
+        <!-- RIGHT: main analytics area -->
+        <main class="ua-main" id="uaMain">
+
+            <!-- Empty state -->
+            <div class="ua-main-empty" id="uaDetailEmpty">
+                <div class="ua-empty-state">
+                    <i class="fas fa-user-chart"></i>
+                    <h5>Select a user</h5>
+                    <p>Click a user from the list to view their detailed analytics.</p>
+                </div>
+            </div>
+
+            <!-- Analytics content -->
+            <div class="ua-main-content" id="uaDetailContent" style="display:none;">
+
+                <!-- Stat row: 4 equal cards -->
+                <div class="ua-section-label">Overview</div>
+                <div class="ua-stat-row" id="uaSummaryRow">
+                    <div class="ua-stat-card">
+                        <div class="ua-stat-value" id="uaTotalViews">--</div>
+                        <div class="ua-stat-label">Total Views</div>
+                    </div>
+                    <div class="ua-stat-card">
+                        <div class="ua-stat-value" id="uaTotalClaps">--</div>
+                        <div class="ua-stat-label">Total Claps</div>
+                    </div>
+                    <div class="ua-stat-card">
+                        <div class="ua-stat-value" id="uaAvgReadTime">--</div>
+                        <div class="ua-stat-label">Avg Read Time</div>
+                    </div>
+                    <div class="ua-stat-card">
+                        <div class="ua-stat-value" id="uaAvgScroll">--</div>
+                        <div class="ua-stat-label">Avg Scroll %</div>
+                    </div>
+                </div>
+
+                <!-- Chart grid 2×2 -->
+                <div class="ua-section-label">Charts</div>
+                <div class="ua-chart-grid">
+
+                    <!-- Views Over Time -->
+                    <div class="ua-chart-card">
+                        <div class="ua-chart-header">
+                            <span class="ua-chart-title">Views Over Time</span>
+                        </div>
+                        <div class="ua-chart-body">
+                            <div class="ua-chart-skeleton" style="height:220px"></div>
+                            <div class="ua-chart-canvas-wrap" style="height:220px;position:relative;">
+                                <canvas id="chartViewsTime" style="display:none;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Claps Per Post -->
+                    <div class="ua-chart-card">
+                        <div class="ua-chart-header">
+                            <span class="ua-chart-title">Claps Per Post</span>
+                        </div>
+                        <div class="ua-chart-body">
+                            <div class="ua-chart-skeleton" style="height:220px"></div>
+                            <div class="ua-chart-canvas-wrap" style="height:220px;position:relative;">
+                                <canvas id="chartClapsPost" style="display:none;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Traffic Sources -->
+                    <div class="ua-chart-card">
+                        <div class="ua-chart-header">
+                            <span class="ua-chart-title">Traffic Sources</span>
+                        </div>
+                        <div class="ua-chart-body ua-chart-body-center">
+                            <div class="ua-chart-skeleton" style="width:200px;height:200px;border-radius:50%;"></div>
+                            <canvas id="chartTraffic" height="200" width="200" style="display:none;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Activity Heatmap -->
+                    <div class="ua-chart-card">
+                        <div class="ua-chart-header">
+                            <span class="ua-chart-title">Activity Heatmap</span>
+                            <span class="ua-chart-sub">Last 12 Weeks</span>
+                        </div>
+                        <div class="ua-chart-body">
+                            <div class="ua-chart-skeleton" style="height:140px"></div>
+                            <div class="ua-heatmap-grid" id="uaHeatmap" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Blog Breakdown table -->
+                <div class="ua-section-label">Blog Breakdown</div>
+                <div class="ua-chart-card">
+                    <div class="ua-chart-body">
+                        <div class="ua-posts-skeleton">Loading posts…</div>
+                        <div class="table-responsive" id="uaPostsTableWrap" style="display:none;">
+                            <table class="ua-posts-table" id="uaPostsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Post</th>
+                                        <th>Published</th>
+                                        <th>Views</th>
+                                        <th>Unique</th>
+                                        <th>Claps</th>
+                                        <th>Avg Read</th>
+                                        <th>Scroll %</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="uaPostsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+</div>
+
+<!-- Scroll heatmap modal -->
+<div class="ua-modal-overlay" id="uaHeatmapModal" style="display:none;">
+    <div class="ua-modal-card">
+        <div class="ua-modal-header">
+            <span class="ua-modal-title" id="uaModalTitle">Scroll Heatmap</span>
+            <button class="ua-modal-close" id="uaModalClose" type="button">&times;</button>
+        </div>
+        <div class="ua-modal-body" id="uaModalBody">
+            <div class="ua-scroll-heatmap" id="uaScrollHeatmap"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="~/js/admin-user-analytics.js" asp-append-version="true"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Analytics shell — two-column layout
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ua-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: 100%;
+     padding: 1.5rem 1.75rem;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+
+.ua-topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0 0 1.25rem;
+}
+
+.ua-topbar-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ua-eyebrow {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.ua-title {
+    margin: 0;
+    font-size: 1.625rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text);
+}
+
+.ua-subtitle {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.ua-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Toggle users button */
+.ua-toggle-panel {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+    flex-shrink: 0;
+}
+
+.ua-toggle-panel:hover {
+    background: var(--surface);
+    border-color: var(--line-2);
+    color: var(--text);
+}
+
+.ua-content.has-panel-hidden .ua-toggle-panel {
+    background: var(--text);
+    border-color: var(--text);
+    color: #fff;
+}
+
+/* Search */
+.ua-search-wrap {
+    position: relative;
+}
+
+.ua-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 0.75rem;
+    pointer-events: none;
+}
+
+.ua-search-input {
+    width: 200px;
+    height: 34px;
+    padding: 0 12px 0 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+    transition: border-color 160ms ease;
+}
+
+.ua-search-input:focus {
+    outline: none;
+    border-color: var(--text);
+}
+
+/* Date range */
+.ua-range-selector {
+    display: flex;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ua-range-btn {
+    padding: 5px 13px;
+    border: none;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 160ms ease, color 160ms ease;
+}
+
+.ua-range-btn:not(:last-child) {
+    border-right: 1px solid var(--line);
+}
+
+.ua-range-btn:hover {
+    color: var(--text);
+    background: var(--surface);
+}
+
+.ua-range-btn.active {
+    background: var(--text);
+    color: #fff;
+}
+
+/* ── Two-column content ─────────────────────────────────────────────────── */
+
+.ua-content {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+    min-height: 0;
+    align-items: flex-start;
+      max-width: 1400px;
+}
+
+/* ── LEFT: user panel ───────────────────────────────────────────────────── */
+
+.ua-user-panel {
+    width: 100%;
+    min-width: 100%;
+     max-width: 860px;
+    flex-shrink: 0;
+    transition: width 220ms ease, min-width 220ms ease, opacity 180ms ease, padding 220ms ease, border 220ms ease;
+    overflow: hidden;
+}
+
+.ua-content.has-panel-hidden .ua-user-panel {
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ua-user-panel-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ua-user-panel-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    padding: 0 0.25rem;
+}
+
+.ua-table-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.ua-table-header {
+    display: grid;
+    grid-template-columns: minmax(180px, 2fr) 70px 70px 70px 70px 90px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+}
+
+.ua-th {
+    padding: 8px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: default;
+}
+
+.ua-th.sortable {
+    cursor: pointer;
+}
+
+.ua-th.sortable:hover {
+    color: var(--text);
+}
+
+.ua-th.sortable i {
+    font-size: 0.5rem;
+}
+
+.ua-th.sortable.active {
+    color: var(--text);
+}
+
+.ua-th-num {
+    justify-content: center;
+}
+
+.ua-th-user {
+    padding-left: 10px;
+}
+
+.ua-table-body {
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.ua-user-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 2fr) 70px 70px 70px 70px 90px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    transition: background 140ms ease;
+    align-items: center;
+    font-size: 11px;
+}
+
+.ua-user-row:hover {
+    background: #fafafa;
+}
+
+.ua-user-row.active {
+    background: #f0f4ff;
+    border-left: 3px solid #2563eb;
+}
+
+.ua-user-row:last-child {
+    border-bottom: none;
+}
+
+.ua-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding-left: 6px;
+}
+
+.ua-user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.ua-user-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+   
+}
+
+.ua-user-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ua-user-email {
+    font-size: 0.65rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ua-cell-num {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.ua-cell-date {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+}
+
+.ua-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-top: 1px solid var(--line);
+    font-size: 0.7rem;
+    color: var(--muted);
+}
+
+.ua-pagination-nav {
+    display: flex;
+    gap: 2px;
+}
+
+.ua-page-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--text);
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 140ms ease, background 140ms ease;
+}
+
+.ua-page-btn:hover:not(.active):not(:disabled) {
+    border-color: var(--text);
+}
+
+.ua-page-btn.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: #fff;
+}
+
+.ua-page-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
+
+.ua-table-skeleton .skeleton-row {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: ua-shimmer 1.5s infinite;
+    border-radius: 5px;
+    margin: 6px 8px;
+}
+
+.ua-chart-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: ua-shimmer 1.5s infinite;
+    border-radius: 8px;
+    width: 100%;
+}
+
+@@keyframes ua-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── RIGHT: main analytics ───────────────────────────────────────────────── */
+
+.ua-main {
+    margin-top:20px;   flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ua-main-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 3rem 1.25rem;
+    min-height: 400px;
+}
+
+.ua-empty-state {
+    text-align: center;
+    color: var(--muted);
+}
+
+.ua-empty-state i {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.ua-empty-state h5 {
+    margin: 0 0 4px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.ua-empty-state p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.ua-main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Section label */
+.ua-section-label {
+       margin-bottom: -0.25rem;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    padding: 0;
+    margin: 0;
+}
+
+/* ── Stat row ────────────────────────────────────────────────────────────── */
+
+.ua-stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.ua-stat-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 160ms ease;
+}
+
+.ua-stat-card:hover {
+    border-color: var(--line-2);
+}
+
+.ua-stat-value {
+    font-size: 20px;  
+    font-weight: 500;
+    line-height: 1;
+    color: var(--text);
+}
+
+.ua-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ── Chart grid ──────────────────────────────────────────────────────────── */
+
+.ua-chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.ua-chart-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.ua-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.ua-chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.ua-chart-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.ua-chart-body {
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    flex: 1;
+}
+
+.ua-chart-body-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+}
+
+/* ── Heatmap ─────────────────────────────────────────────────────────────── */
+
+.ua-heatmap-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ua-heatmap-week-row {
+    display: flex;
+    gap: 3px;
+}
+
+.ua-heatmap-day-label {
+    width: 28px;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+    flex-shrink: 0;
+}
+
+.ua-heatmap-cell {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 100ms ease;
+}
+
+.ua-heatmap-cell:hover {
+    transform: scale(1.3);
+    z-index: 1;
+}
+
+.ua-heatmap-cell.level-0 { background: #f0f0f0; }
+.ua-heatmap-cell.level-1 { background: #9be9a8; }
+.ua-heatmap-cell.level-2 { background: #40c463; }
+.ua-heatmap-cell.level-3 { background: #30a14e; }
+.ua-heatmap-cell.level-4 { background: #216e39; }
+
+.ua-heatmap-tooltip {
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+    display: none;
+}
+
+.ua-heatmap-cell:hover .ua-heatmap-tooltip {
+    display: block;
+}
+
+/* ── Posts table ─────────────────────────────────────────────────────────── */
+
+.ua-posts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ua-posts-table thead th {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    white-space: nowrap;
+    text-align: left;
+}
+
+.ua-posts-table tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.ua-posts-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ua-posts-table tbody tr:hover td {
+    background: #fafafa;
+}
+
+.ua-post-title {
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+    color: var(--text);
+    font-size: 13px;
+}
+
+.ua-post-title a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.ua-post-title a:hover {
+    text-decoration: underline;
+}
+
+.ua-posts-skeleton {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1.25rem 0;
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+
+.ua-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(0,0,0,.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ua-modal-card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    width: 480px;
+    max-width: 94vw;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0,0,0,.18);
+}
+
+.ua-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.ua-modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.ua-modal-close {
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.ua-modal-close:hover {
+    color: var(--text);
+}
+
+.ua-modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+}
+
+.ua-scroll-heatmap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ua-scroll-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ua-scroll-bar {
+    flex: 1;
+    height: 32px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 40px;
+}
+
+.ua-scroll-label {
+    width: 60px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.ua-scroll-green  { background: linear-gradient(90deg, #40c463, #30a14e); }
+.ua-scroll-yellow { background: linear-gradient(90deg, #f0c040, #e0a020); }
+.ua-scroll-red    { background: linear-gradient(90deg, #f05050, #d03030); }
+.ua-scroll-green .ua-scroll-bar, .ua-scroll-red .ua-scroll-bar { color: #fff; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@@media (max-width: 1100px) {
+    .ua-content {
+        flex-direction: column;
+    }
+
+    .ua-user-panel {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .ua-content.has-panel-hidden .ua-user-panel {
+        width: 100%;
+        min-width: 100%;
+        opacity: 1;
+        pointer-events: auto;
+        max-height: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .ua-chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ua-stat-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ua-search-input {
+        width: 140px;
+    }
+}
+
+@@media (max-width: 640px) {
+    .ua-topbar {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .ua-topbar-right {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .ua-stat-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ua-table-header, .ua-user-row {
+      grid-template-columns: 1fr 32px 36px 36px 32px 42px;
+    }
+
+    .ua-th:nth-child(4), .ua-th:nth-child(5), .ua-th:nth-child(6),
+    .ua-user-row > *:nth-child(4), .ua-user-row > *:nth-child(5), .ua-user-row > *:nth-child(6) {
+        display: none;
+    }
+}
+</style>
+}

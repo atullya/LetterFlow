@@ -914,5 +914,43 @@ namespace LetterTemplatePractice.Controllers
 
             return exists ? notebookId : null;
         }
+
+        [AllowAnonymous]
+        [HttpPost("/api/blog/{postId:int}/track-view")]
+        public async Task<IActionResult> TrackView(int postId,
+            [FromForm] int? scrollDepthPercent = null,
+            [FromForm] int? timeOnPageSeconds = null,
+            [FromForm] string? referrerSource = null,
+            [FromForm] string? sessionId = null)
+        {
+            var post = await _context.BlogPosts.FindAsync(postId);
+            if (post == null) return NotFound();
+
+            int? userId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (uidStr != null && int.TryParse(uidStr, out var uid))
+                    userId = uid;
+            }
+
+            sessionId ??= Guid.NewGuid().ToString("N")[..16];
+
+            var view = new PostView
+            {
+                PostId = postId,
+                UserId = userId,
+                SessionId = sessionId,
+                Timestamp = DateTime.UtcNow,
+                ScrollDepthPercent = scrollDepthPercent,
+                TimeOnPageSeconds = timeOnPageSeconds,
+                ReferrerSource = referrerSource?.Length > 40 ? referrerSource[..40] : referrerSource
+            };
+
+            _context.PostViews.Add(view);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
     }
 }

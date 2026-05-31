@@ -324,6 +324,97 @@
         document.getElementById('reportPostReason')?.addEventListener('input', function () {
             document.getElementById('reportPostCharCount').textContent = this.value.length;
         });
+
+        // ── Scroll depth & time-on-page tracking ──────────────────────────
+        (function () {
+            var postId = @Model.Post.Id;
+            var sessionId = (function () {
+                var key = 'lf_session_id';
+                var sid = sessionStorage.getItem(key) || localStorage.getItem(key);
+                if (!sid) {
+                    sid = 'xxxxxxxxxxxx'.replace(/x/g, function () {
+                        return (Math.random() * 16 | 0).toString(16);
+                    });
+                    sessionStorage.setItem(key, sid);
+                    localStorage.setItem(key, sid);
+                }
+                return sid;
+            })();
+
+            function getReferrerSource() {
+                var ref = document.referrer || '';
+                if (!ref) return 'direct';
+                var lc = ref.toLowerCase();
+                if (lc.indexOf('google.') >= 0 || lc.indexOf('bing.com') >= 0 || lc.indexOf('duckduckgo') >= 0) return 'search';
+                if (lc.indexOf('twitter.com') >= 0 || lc.indexOf('x.com') >= 0 || lc.indexOf('facebook.com') >= 0 ||
+                    lc.indexOf('linkedin.com') >= 0 || lc.indexOf('reddit.com') >= 0 || lc.indexOf('t.co') >= 0) return 'social';
+                return 'referral';
+            }
+
+            var referrerSource = getReferrerSource();
+            var startTime = Date.now();
+            var maxScrollPct = 0;
+            var lastSentScroll = 0;
+            var sentFinal = false;
+
+            function sendPing(scrollPct, timeOnPage) {
+                var fd = new FormData();
+                fd.append('scrollDepthPercent', String(Math.round(scrollPct)));
+                fd.append('timeOnPageSeconds', String(Math.round(timeOnPage)));
+                fd.append('referrerSource', referrerSource);
+                fd.append('sessionId', sessionId);
+
+                navigator.sendBeacon('/api/blog/' + postId + '/track-view', fd);
+            }
+
+            function updateScroll() {
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight <= 0) return;
+                var pct = Math.min(100, Math.round((scrollTop / docHeight) * 100));
+                if (pct > maxScrollPct) maxScrollPct = pct;
+            }
+
+            // Send initial ping after 2 seconds
+            setTimeout(function () {
+                updateScroll();
+                if (maxScrollPct > lastSentScroll || lastSentScroll === 0) {
+                    lastSentScroll = maxScrollPct;
+                    sendPing(maxScrollPct, (Date.now() - startTime) / 1000);
+                }
+            }, 2000);
+
+            // Update scroll position on scroll (throttled)
+            var scrollTimer;
+            window.addEventListener('scroll', function () {
+                clearTimeout(scrollTimer);
+                scrollTimer = setTimeout(function () {
+                    updateScroll();
+                    if (maxScrollPct > lastSentScroll + 10 && maxScrollPct > 0) {
+                        lastSentScroll = maxScrollPct;
+                        sendPing(maxScrollPct, (Date.now() - startTime) / 1000);
+                    }
+                }, 2000);
+            }, { passive: true });
+
+            // Send final ping on page unload
+            window.addEventListener('beforeunload', function () {
+                updateScroll();
+                if (!sentFinal) {
+                    sentFinal = true;
+                    sendPing(maxScrollPct, (Date.now() - startTime) / 1000);
+                }
+            });
+
+            // Also send on visibility change (tab hidden)
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden && !sentFinal) {
+                    updateScroll();
+                    sentFinal = true;
+                    sendPing(maxScrollPct, (Date.now() - startTime) / 1000);
+                }
+            });
+        })();
     </script>
 
     <style>

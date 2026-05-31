@@ -18,6 +18,7 @@ namespace LetterTemplatePractice.Data
         public DbSet<AiJob> AiJobs { get; set; }
         public DbSet<Report> Reports { get; set; }
         public DbSet<NewsletterSubscription> NewsletterSubscriptions { get; set; }
+        public DbSet<PostView> PostViews { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -204,6 +205,24 @@ namespace LetterTemplatePractice.Data
                 e.HasOne(s => s.User)
                     .WithMany()
                     .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<PostView>(e =>
+            {
+                e.HasKey(v => v.Id);
+                e.Property(v => v.SessionId).HasMaxLength(64);
+                e.Property(v => v.ReferrerSource).HasMaxLength(40);
+                e.HasIndex(v => v.PostId);
+                e.HasIndex(v => new { v.PostId, v.Timestamp });
+                e.HasIndex(v => v.SessionId);
+                e.HasOne(v => v.Post)
+                    .WithMany()
+                    .HasForeignKey(v => v.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(v => v.User)
+                    .WithMany()
+                    .HasForeignKey(v => v.UserId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
         }
