@@ -1,0 +1,56 @@
+using System.Security.Claims;
+using LetterTemplatePractice.Data;
+using LetterTemplatePractice.Models;
+using LetterTemplatePractice.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace LetterTemplateAPI.Controllers
+{
+    [ApiController]
+    [Route("api/blogs")]
+    public sealed class BlogController : ControllerBase
+    {
+        private readonly ApplicationDbContext _db;
+        private readonly BlogService _bs;
+        public BlogController(ApplicationDbContext db, BlogService bs) { _db = db; _bs = bs; }
+
+        [AllowAnonymous][HttpGet] public async Task<IActionResult> Explore(string? t, string? s, int p = 1, int ps = 20) { var q = _bs.PublishedPostsQuery(); if (!string.IsNullOrWhiteSpace(t)) q = q.Where(x => x.Topic == t); if (!string.IsNullOrWhiteSpace(s)) { var tr = s.Trim(); q = q.Where(x => x.Title.Contains(tr) || (x.Subtitle != null && x.Subtitle.Contains(tr)) || (x.Excerpt != null && x.Excerpt.Contains(tr))); } var total = await q.CountAsync(); var posts = await q.OrderByDescending(x => x.PublishedAt).Skip((p - 1) * ps).Take(ps).Select(x => new { x.Id, x.Title, x.Slug, x.Subtitle, x.Excerpt, x.CoverImageUrl, x.Topic, x.ReadTimeMinutes, x.PublishedAt, x.ViewCount, Author = new { x.Author!.Id, x.Author.Username, x.Author.DisplayName, x.Author.AvatarUrl }, lc = x.Likes.Count, cc = x.Comments.Count }).ToListAsync(); return Ok(new { total, page = p, pageSize = ps, posts }); }
+
+        [AllowAnonymous][HttpGet("{slug}")] public async Task<IActionResult> Details(string slug) { var post = await _db.BlogPosts.Include(x => x.Author).Include(x => x.Comments).ThenInclude(x => x.Author).Include(x => x.Likes).FirstOrDefaultAsync(x => x.Slug == slug); if (post == null) return NotFound(); var uid = Uid(); var io = uid.HasValue && post.AuthorId == uid.Value; if (!post.IsPublished && !io && !User.IsInRole("Admin")) return NotFound(); post.ViewCount++; await _db.SaveChangesAsync(); return Ok(new { post.Id, post.Title, post.Slug, post.Subtitle, post.Excerpt, post.ContentHtml, post.CoverImageUrl, post.Topic, post.ReadTimeMinutes, post.IsPublished, post.IsFeatured, post.PublishedAt, post.ViewCount, lc = post.Likes.Count, il = uid.HasValue && post.Likes.Any(l => l.UserId == uid.Value), Author = new { post.Author!.Id, post.Author.Username, post.Author.DisplayName, post.Author.AvatarUrl }, Comments = post.Comments.OrderByDescending(c => c.CreatedAt).Select(c => new { c.Id, c.Content, c.CreatedAt, Author = new { c.Author!.Id, c.Author.Username, c.Author.AvatarUrl } }) }); }
+
+        [Authorize][HttpPost] public async Task<IActionResult> Create([FromBody] CreateReq r) { var uid = Rid(); var sl = await _bs.GenerateUniqueSlugAsync(r.Title); var p = new BlogPost { AuthorId = uid, Title = r.Title.Trim(), Subtitle = r.Subtitle?.Trim(), Slug = sl, Excerpt = r.Excerpt?.Trim(), CoverImageUrl = r.CoverImageUrl?.Trim(), Topic = r.Topic?.Trim(), ContentHtml = r.Body ?? "", IsPublished = r.Publish, PublishedAt = r.Publish ? DateTime.UtcNow : null, ReadTimeMinutes = _bs.EstimateReadTimeMinutes(r.Body ?? ""), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }; _db.BlogPosts.Add(p); await _db.SaveChangesAsync(); return Created($"/api/blogs/{p.Slug}", new { p.Id, p.Title, p.Slug, p.PublishedAt }); }
+
+        [Authorize][HttpPut("{id}")] public async Task<IActionResult> Update(int id, [FromBody] CreateReq r) { var p = await _db.BlogPosts.FindAsync(id); if (p == null) return NotFound(); if (!Can(p)) return Forbid(); p.Title = r.Title.Trim(); p.Subtitle = r.Subtitle?.Trim(); p.Excerpt = r.Excerpt?.Trim(); p.CoverImageUrl = r.CoverImageUrl?.Trim(); p.Topic = r.Topic?.Trim(); p.ContentHtml = r.Body ?? ""; p.IsPublished = r.Publish; if (r.Publish) p.PublishedAt ??= DateTime.UtcNow; p.ReadTimeMinutes = _bs.EstimateReadTimeMinutes(r.Body ?? ""); p.Slug = await _bs.GenerateUniqueSlugAsync(p.Title, p.Id); p.UpdatedAt = DateTime.UtcNow; await _db.SaveChangesAsync(); return Ok(new { p.Id, p.Title, p.Slug }); }
+
+        [Authorize][HttpDelete("{id}")] public async Task<IActionResult> Delete(int id) { var p = await _db.BlogPosts.FindAsync(id); if (p == null) return NotFound(); if (!Can(p)) return Forbid(); _db.BlogPosts.Remove(p); await _db.SaveChangesAsync(); return NoContent(); }
+
+        [Authorize][HttpGet("mine")] public async Task<IActionResult> Mine(int? nb) { var uid = Rid(); var q = _db.BlogPosts.AsNoTracking().Where(x => x.AuthorId == uid); if (nb.HasValue) q = q.Where(x => x.NotebookId == nb); return Ok(await q.OrderByDescending(x => x.UpdatedAt).Select(x => new { x.Id, x.Title, x.Slug, x.IsPublished, x.PublishedAt, x.ViewCount, x.UpdatedAt, lc = x.Likes.Count, cc = x.Comments.Count }).ToListAsync()); }
+
+        [Authorize][HttpPost("{id}/like")] public async Task<IActionResult> ToggleLike(int id) { var uid = Rid(); var post = await _db.BlogPosts.Include(x => x.Likes).FirstOrDefaultAsync(x => x.Id == id && x.IsPublished); if (post == null) return NotFound(); var ex = post.Likes.FirstOrDefault(l => l.UserId == uid); bool liked; if (ex == null) { _db.BlogLikes.Add(new BlogLike { PostId = id, UserId = uid, CreatedAt = DateTime.UtcNow }); liked = true; } else { _db.BlogLikes.Remove(ex); liked = false; } await _db.SaveChangesAsync(); return Ok(new { liked, count = await _db.BlogLikes.CountAsync(l => l.PostId == id) }); }
+
+        [Authorize][HttpPost("{id}/comments")] public async Task<IActionResult> Comment(int id, [FromBody] CommentReq r) { if (string.IsNullOrWhiteSpace(r.Content)) return BadRequest(new { error = "Content required." }); var uid = Rid(); var post = await _db.BlogPosts.FirstOrDefaultAsync(x => x.Id == id && x.IsPublished); if (post == null) return NotFound(); var c = new BlogComment { PostId = id, AuthorId = uid, Content = r.Content.Trim(), CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }; _db.BlogComments.Add(c); await _db.SaveChangesAsync(); return Created($"/api/blogs/{id}/comments/{c.Id}", new { c.Id, c.Content, c.CreatedAt }); }
+
+        [Authorize][HttpDelete("comments/{cid}")] public async Task<IActionResult> DeleteComment(int cid) { var c = await _db.BlogComments.Include(x => x.Post).FirstOrDefaultAsync(x => x.Id == cid); if (c == null) return NotFound(); var uid = Uid(); if (uid != c.AuthorId && uid != c.Post!.AuthorId && !User.IsInRole("Admin")) return Forbid(); _db.BlogComments.Remove(c); await _db.SaveChangesAsync(); return NoContent(); }
+
+        [AllowAnonymous][HttpGet("user/{username}")] public async Task<IActionResult> Profile(string username) { var u = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Username == username); if (u == null) return NotFound(); var posts = await _db.BlogPosts.AsNoTracking().Where(x => x.AuthorId == u.Id && x.IsPublished).OrderByDescending(x => x.PublishedAt).Select(x => new { x.Id, x.Title, x.Slug, x.Excerpt, x.Topic, x.PublishedAt, x.ViewCount, lc = x.Likes.Count, cc = x.Comments.Count }).ToListAsync(); var fc = await _db.Follows.CountAsync(f => f.FollowingId == u.Id); var fgc = await _db.Follows.CountAsync(f => f.FollowerId == u.Id); var cid = Uid(); return Ok(new { user = new { u.Id, u.Username, u.DisplayName, u.Email, u.AvatarUrl, u.CreatedAt }, posts, followerCount = fc, followingCount = fgc, isFollowing = cid.HasValue && await _db.Follows.AnyAsync(f => f.FollowerId == cid.Value && f.FollowingId == u.Id) }); }
+
+        [Authorize][HttpPost("follow/{userId}")] public async Task<IActionResult> ToggleFollow(int userId) { var cid = Rid(); if (cid == userId) return BadRequest(new { error = "Cannot follow yourself." }); var t = await _db.Users.FindAsync(userId); if (t == null) return NotFound(); var ex = await _db.Follows.FirstOrDefaultAsync(f => f.FollowerId == cid && f.FollowingId == userId); bool f; if (ex == null) { _db.Follows.Add(new Follow { FollowerId = cid, FollowingId = userId, CreatedAt = DateTime.UtcNow }); _db.Notifications.Add(new Notification { RecipientId = userId, ActorId = cid, Type = "follow", IsRead = false, CreatedAt = DateTime.UtcNow }); f = true; } else { _db.Follows.Remove(ex); f = false; } await _db.SaveChangesAsync(); return Ok(new { following = f, followerCount = await _db.Follows.CountAsync(x => x.FollowingId == userId) }); }
+
+        [Authorize][HttpPost("{id}/report")] public async Task<IActionResult> ReportPost(int id, [FromBody] ReportReq r) { var rid = Rid(); var post = await _db.BlogPosts.FindAsync(id); if (post == null) return NotFound(); if (post.AuthorId == rid) return BadRequest(new { error = "Cannot report own post." }); var ha = DateTime.UtcNow.AddHours(-1); if (await _db.Reports.CountAsync(x => x.ReporterId == rid && x.CreatedAt >= ha) >= 5) return StatusCode(429, new { error = "Too many reports." }); if (await _db.Reports.AnyAsync(x => x.ReporterId == rid && x.TargetPostId == id)) return Conflict(new { error = "Already reported." }); _db.Reports.Add(new Report { ReporterId = rid, TargetPostId = id, Reason = r.Reason?.Trim(), CreatedAt = DateTime.UtcNow }); var uc = await _db.Reports.CountAsync(x => x.TargetPostId == id && !x.IsResolved); if (uc + 1 >= 5) { post.IsHidden = true; post.UpdatedAt = DateTime.UtcNow; } await _db.SaveChangesAsync(); return Ok(new { message = "Reported." }); }
+
+        [AllowAnonymous][HttpPost("{postId}/track-view")] public async Task<IActionResult> TrackView(int postId, [FromBody] TrackReq r) { var post = await _db.BlogPosts.FindAsync(postId); if (post == null) return NotFound(); int? uid = null; if (User.Identity?.IsAuthenticated == true) { var v = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier); if (int.TryParse(v, out var i)) uid = i; } _db.PostViews.Add(new PostView { PostId = postId, UserId = uid, SessionId = r.SessionId ?? Guid.NewGuid().ToString("N")[..16], Timestamp = DateTime.UtcNow, ScrollDepthPercent = r.ScrollDepthPercent, TimeOnPageSeconds = r.TimeOnPageSeconds, ReferrerSource = r.ReferrerSource?.Length > 40 ? r.ReferrerSource[..40] : r.ReferrerSource }); await _db.SaveChangesAsync(); return Ok(); }
+
+        [AllowAnonymous][HttpGet("topics")] public async Task<IActionResult> Topics() => Ok(await _db.BlogPosts.AsNoTracking().Where(x => x.IsPublished && x.Topic != null && x.Topic != "").Select(x => x.Topic!).Distinct().OrderBy(x => x).ToListAsync());
+
+        private int Rid() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private int? Uid() { var v = User.FindFirstValue(ClaimTypes.NameIdentifier); return int.TryParse(v, out var i) ? i : null; }
+        private bool Can(BlogPost p) { var uid = Uid(); return uid == p.AuthorId || User.IsInRole("Admin"); }
+    }
+
+    public sealed class CreateReq { public string Title { get; set; } = ""; public string? Subtitle { get; set; } public string? Excerpt { get; set; } public string? CoverImageUrl { get; set; } public string? Topic { get; set; } public string? Body { get; set; } public bool Publish { get; set; } }
+    public sealed class CommentReq { public string Content { get; set; } = ""; }
+    public sealed class ReportReq { public string? Reason { get; set; } }
+    public sealed class TrackReq { public int? ScrollDepthPercent { get; set; } public int? TimeOnPageSeconds { get; set; } public string? ReferrerSource { get; set; } public string? SessionId { get; set; } }
+}
