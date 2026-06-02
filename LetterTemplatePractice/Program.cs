@@ -1,9 +1,12 @@
+using LetterTemplate.RAG;
 using LetterTemplatePractice.Auth;
 using LetterTemplatePractice.BackgroundServices;
 using LetterTemplatePractice.Data;
 using LetterTemplatePractice.Models;
 using LetterTemplatePractice.Services;
-using Logging;using Microsoft.AspNetCore.Authentication.Cookies;
+using Logging;
+using Pgvector;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -14,8 +17,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), npgsqlOptions => npgsqlOptions.UseVector())
            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
 // Logger — singleton, in-memory buffer + Serilog JSON file
 builder.Services.AddSingleton<AppLogger>();
@@ -58,6 +62,9 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<BlogService>();
+
+// RAG — Retrieval-Augmented Generation
+builder.Services.AddRagServices(builder.Configuration);
 
 // AI — Gemini (free tier)
 builder.Services.AddHttpClient("gemini");
@@ -129,12 +136,58 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// Auto-apply EF Core migrations on startup (safe to run on every deploy)
+// Try to enable pgvector extension before applying migrations
+var vectorAvailable = false;
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        db.Database.ExecuteSqlRaw("CREATE EXTENSION IF NOT EXISTS vector;");
+        vectorAvailable = true;
+    }
+    catch
+    {
+        vectorAvailable = false;
+    }
 }
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<IAppLogger>();
+
+        if (vectorAvailable)
+        {
+            logger.LogInformation("Startup", "pgvector extension enabled. Applying all migrations.");
+            db.Database.Migrate();
+
+            try
+            {
+                db.Database.ExecuteSqlRaw(
+                    @"ALTER TABLE ""BlogChunks"" ALTER COLUMN ""Embedding"" TYPE vector(768) USING ""Embedding""::vector;");
+                logger.LogInformation("Startup", "BlogChunks.Embedding column upgraded to vector(768).");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Startup", $"Could not upgrade Embedding column (may already be vector): {ex.Message}");
+            }
+        }
+    else
+    {
+        logger.LogWarning("Startup", "pgvector extension not available. RAG features will be disabled.");
+        try
+        {
+            db.Database.Migrate();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("Startup", $"Migration failed (expected if pgvector missing): {ex.Message}");
+        }
+    }
+}
+
+PgVectorAvailability.IsAvailable = false;
 
 await DataSeeder.SeedAsync(app.Services);
 

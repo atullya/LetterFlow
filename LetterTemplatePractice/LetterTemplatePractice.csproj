@@ -38,6 +38,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Logging\Logging.csproj" />
+    <ProjectReference Include="..\LetterTemplate.RAG\LetterTemplate.RAG.csproj" />
   </ItemGroup>
 
 </Project>

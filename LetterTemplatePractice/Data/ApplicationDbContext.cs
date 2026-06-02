@@ -1,5 +1,7 @@
 using LetterTemplatePractice.Models;
+using LetterTemplate.RAG.Models;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 
 namespace LetterTemplatePractice.Data
 {
@@ -19,6 +21,7 @@ namespace LetterTemplatePractice.Data
         public DbSet<Report> Reports { get; set; }
         public DbSet<NewsletterSubscription> NewsletterSubscriptions { get; set; }
         public DbSet<PostView> PostViews { get; set; }
+        public DbSet<BlogChunk> BlogChunks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -159,36 +162,30 @@ namespace LetterTemplatePractice.Data
                 e.Property(r => r.Outcome).HasMaxLength(20);
                 e.Property(r => r.IsResolved).HasDefaultValue(false);
 
-                // Reporter -> Reports (cascade: deleting reporter removes their reports)
                 e.HasOne(r => r.Reporter)
                     .WithMany(u => u.ReportsSubmitted)
                     .HasForeignKey(r => r.ReporterId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Report -> Post (cascade: deleting post removes its reports)
                 e.HasOne(r => r.Post)
                     .WithMany(p => p.Reports)
                     .HasForeignKey(r => r.TargetPostId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Report -> TargetUser (cascade: deleting user removes reports against them)
                 e.HasOne(r => r.TargetUser)
                     .WithMany(u => u.ReportsReceived)
                     .HasForeignKey(r => r.TargetUserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // ResolvedBy admin (set null if admin is deleted)
                 e.HasOne(r => r.ResolvedBy)
                     .WithMany()
                     .HasForeignKey(r => r.ResolvedById)
                     .OnDelete(DeleteBehavior.SetNull);
 
-                // Unique: one report per reporter per post
                 e.HasIndex(r => new { r.ReporterId, r.TargetPostId })
                     .IsUnique()
                     .HasFilter("\"TargetPostId\" IS NOT NULL");
 
-                // Unique: one report per reporter per user
                 e.HasIndex(r => new { r.ReporterId, r.TargetUserId })
                     .IsUnique()
                     .HasFilter("\"TargetUserId\" IS NOT NULL");
@@ -224,6 +221,16 @@ namespace LetterTemplatePractice.Data
                     .WithMany()
                     .HasForeignKey(v => v.UserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<BlogChunk>(e =>
+            {
+                e.HasKey(c => c.Id);
+                e.Property(c => c.Content).IsRequired().HasMaxLength(10000);
+                e.Property(c => c.AuthorName).HasMaxLength(200);
+                e.Property(c => c.PostTitle).HasMaxLength(200);
+                e.Property(c => c.PostSlug).HasMaxLength(200);
+                e.HasIndex(c => c.PostId);
             });
         }
     }

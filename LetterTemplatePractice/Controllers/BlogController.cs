@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using LetterTemplate.RAG.Services;
+using LetterTemplate.RAG.Models;
 using LetterTemplatePractice.Data;
 using Logging;
 using LetterTemplatePractice.Models;
@@ -18,13 +20,16 @@ namespace LetterTemplatePractice.Controllers
         private readonly ApplicationDbContext _context;
         private readonly BlogService _blogService;
         private readonly IAppLogger _logger;
-        
+        private readonly IRagService _ragService;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public BlogController(ApplicationDbContext context, BlogService blogService, IAppLogger logger)
+        public BlogController(ApplicationDbContext context, BlogService blogService, IAppLogger logger, IRagService ragService, IServiceScopeFactory scopeFactory)
         {
             _context = context;
             _blogService = blogService;
             _logger = logger;
+            _ragService = ragService;
+            _scopeFactory = scopeFactory;
         }
 
         [AllowAnonymous]
@@ -199,6 +204,26 @@ namespace LetterTemplatePractice.Controllers
 
             _logger.LogInformation(Category, $"Blog post '{post.Title}' created.", "/Blog/Create", userId.ToString());
 
+            if (post.IsPublished)
+            {
+                var authorName = (await _context.Users.FindAsync(userId))?.Username ?? "Unknown";
+                var postIdCopy = post.Id;
+                var htmlCopy = post.ContentHtml;
+                var titleCopy = post.Title;
+                var slugCopy = post.Slug;
+                var scopeFactory = _scopeFactory;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = scopeFactory.CreateScope();
+                        var rag = scope.ServiceProvider.GetRequiredService<IRagService>();
+                        await rag.IngestPostAsync(postIdCopy, htmlCopy, titleCopy, authorName, slugCopy);
+                    }
+                    catch { }
+                });
+            }
+
             return RedirectToAction(nameof(Details), new { slug = post.Slug });
         }
 
@@ -280,12 +305,33 @@ namespace LetterTemplatePractice.Controllers
             post.PublishedAt = shouldPublish ? post.PublishedAt ?? DateTime.UtcNow : null;
             post.ScheduledAt = shouldSchedule ? model.ScheduledAt : null;
             post.ReadTimeMinutes = _blogService.EstimateReadTimeMinutes(model.ContentHtml);
-            post.Slug = await _blogService.GenerateUniqueSlugAsync(post.Title, post.Id);
+            var newSlug = await _blogService.GenerateUniqueSlugAsync(post.Title, post.Id);
+            post.Slug = newSlug;
             post.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(Category, $"Blog post '{post.Title}' updated.", "/Blog/Edit", post.AuthorId.ToString());
+
+            if (post.IsPublished)
+            {
+                var authorName = (await _context.Users.FindAsync(post.AuthorId))?.Username ?? "Unknown";
+                var postIdCopy = post.Id;
+                var htmlCopy = post.ContentHtml;
+                var titleCopy = post.Title;
+                var slugCopy = post.Slug;
+                var scopeFactory = _scopeFactory;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = scopeFactory.CreateScope();
+                        var rag = scope.ServiceProvider.GetRequiredService<IRagService>();
+                        await rag.IngestPostAsync(postIdCopy, htmlCopy, titleCopy, authorName, slugCopy);
+                    }
+                    catch { }
+                });
+            }
 
             return RedirectToAction(nameof(Details), new { slug = post.Slug });
         }
@@ -913,6 +959,28 @@ namespace LetterTemplatePractice.Controllers
                 .AnyAsync(notebook => notebook.Id == notebookId.Value && notebook.UserId == userId);
 
             return exists ? notebookId : null;
+        }
+
+        [AllowAnonymous]
+        [HttpPost("/blog/{postId:int}/ask")]
+        public async Task<IActionResult> Ask(int postId, [FromBody] AskRequest request)
+        {
+            var post = await _context.BlogPosts
+                .AsNoTracking()
+                .Include(p => p.Author)
+                .FirstOrDefaultAsync(p => p.Id == postId && p.IsPublished && !p.IsHidden);
+
+            if (post == null)
+                return NotFound(new { error = "Post not found." });
+
+            var query = new RagQuery
+            {
+                PostId = postId,
+                Question = request.Question?.Trim() ?? string.Empty
+            };
+
+            var result = await _ragService.AskAsync(query);
+            return Json(result);
         }
 
         [AllowAnonymous]
