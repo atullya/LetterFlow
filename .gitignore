@@ -60,3 +60,6 @@ LetterTemplatePractice/wwwroot/uploads/*
 
 ## ── dotnet sentinel / telemetry files ───────────────────────────────────────
 .dotnet/
+
+## ── React build output ───────────────────────────────────────────────────────
+UIForm/dist/
