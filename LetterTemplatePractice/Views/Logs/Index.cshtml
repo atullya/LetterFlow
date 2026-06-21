@@ -1,0 +1,469 @@
+@model LetterTemplatePractice.Models.ViewModels.LogFilterViewModel
+@using Logging
+@{
+    ViewData["Title"] = "Application Logs";
+    ViewData["MetaDescription"] = "Filter LetterFlow Stories application logs by date, level, keyword, request path, and system status for newsletter platform support.";
+
+    // Helper: build URL preserving all current params except the one being changed
+    string PageUrl(int p) {
+        var q = new Dictionary<string, string?> {
+            ["date"]     = Model.Date.HasValue ? Model.Date.Value.ToString("yyyy-MM-dd") : null,
+            ["level"]    = Model.Level.HasValue ? ((int)Model.Level.Value).ToString() : null,
+            ["search"]   = Model.Search,
+            ["page"]     = p.ToString(),
+            ["pageSize"] = Model.PageSize.ToString()
+        };
+        return "/Logs?" + string.Join("&", q.Where(kv => kv.Value != null).Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value!)}"));
+    }
+}
+
+<div class="logs-shell">
+
+    <div class="logs-header">
+        <div>
+            <p class="eyebrow">System</p>
+            <h1 class="logs-title">Application Logs</h1>
+            <p class="logs-subtitle">Filter by date, level, or keyword. Results are paginated newest-first.</p>
+        </div>
+    </div>
+
+    <!-- Filter card -->
+    <div class="logs-filter-card">
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="logs-error-message">@Model.ErrorMessage</div>
+        }
+
+        <form method="get" asp-action="Index" id="filterForm">
+            <div class="logs-filter-row">
+                <div class="logs-filter-field">
+                    <label class="form-label" for="datePicker">Date</label>
+                    <input type="date" name="date" id="datePicker" class="form-control"
+                           value="@(Model.Date.HasValue ? Model.Date.Value.ToString("yyyy-MM-dd") : "")"
+                           max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <div class="logs-filter-field">
+                    <label class="form-label" for="levelSelect">Level</label>
+                    <select name="level" id="levelSelect" class="form-select">
+                        <option value="">All levels</option>
+                     <option value="0" selected="@(Model.Level == AppLogLevel.Information)">Information</option>
+
+<option value="1" selected="@(Model.Level == AppLogLevel.Warning)">Warning</option>
+
+<option value="2" selected="@(Model.Level == AppLogLevel.Error)">Error</option>
+                    </select>
+                </div>
+
+                <div class="logs-filter-field logs-filter-search">
+                    <label class="form-label" for="searchInput">Keyword</label>
+                    <input type="text" name="search" id="searchInput" class="form-control"
+                           placeholder="Search message, category, path…"
+                           value="@Model.Search" />
+                </div>
+
+                <div class="logs-filter-field" style="min-width:100px;">
+                    <label class="form-label" for="pageSizeSelect">Per page</label>
+                    <select name="pageSize" id="pageSizeSelect" class="form-select">
+                        @foreach (var s in new[] { 15, 30, 45, 60, 75 })
+                        {
+                                <option value="@s" selected="@(Model.PageSize == s)">
+                                  @s
+                                  </option>
+                        }
+                    </select>
+                </div>
+
+                <input type="hidden" name="page" value="1" />
+
+                <div class="logs-filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary" title="Clear filters">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </div>
+
+            @if (Model.AvailableDates.Any())
+            {
+                <div class="logs-date-chips">
+                    <span class="logs-date-chips-label">Quick</span>
+                    @foreach (var date in Model.AvailableDates.Take(7))
+                    {
+                        var isActive = Model.Date.HasValue && DateOnly.FromDateTime(Model.Date.Value) == date;
+                        <button type="button" class="date-chip @(isActive ? "active" : "")"
+                                onclick="setDate('@date.ToString("yyyy-MM-dd")')">
+                            @date.ToString("MMM dd")
+                        </button>
+                    }
+                </div>
+            }
+        </form>
+    </div>
+
+    @if (Model.TotalCount > 0 || Model.HasFilters)
+    {
+        <!-- Stats row -->
+        <div class="logs-stats-row">
+            <div class="logs-stat">
+                <span class="logs-stat-value">@Model.TotalCount</span>
+                <span class="logs-stat-label">Total</span>
+            </div>
+            <div class="logs-stat-divider"></div>
+            <div class="logs-stat">
+                <span class="logs-stat-value">@Model.InfoCount</span>
+                <span class="logs-stat-label">Info</span>
+            </div>
+            <div class="logs-stat-divider"></div>
+            <div class="logs-stat">
+                <span class="logs-stat-value">@Model.WarnCount</span>
+                <span class="logs-stat-label">Warnings</span>
+            </div>
+            <div class="logs-stat-divider"></div>
+            <div class="logs-stat">
+                <span class="logs-stat-value">@Model.ErrorCount</span>
+                <span class="logs-stat-label">Errors (page)</span>
+            </div>
+            <div class="logs-stat-divider"></div>
+            <div class="logs-stat">
+                <span class="logs-stat-value">@Model.Page / @Model.TotalPages</span>
+                <span class="logs-stat-label">Page</span>
+            </div>
+        </div>
+
+        <!-- Table card -->
+        <div class="logs-table-card">
+            <div class="logs-table-toolbar">
+                <span class="logs-table-title">
+                    Log Entries
+                    <span class="logs-table-count">
+                        @(((Model.Page - 1) * Model.PageSize) + 1)–@(Math.Min(Model.Page * Model.PageSize, Model.TotalCount))
+                        of @Model.TotalCount
+                    </span>
+                </span>
+                <div class="logs-live-search-wrap">
+                    <i class="fas fa-search logs-live-search-icon"></i>
+                    <input type="text" id="liveSearch" class="logs-live-search" placeholder="Live filter this page…" />
+                </div>
+            </div>
+
+            @if (!Model.Logs.Any())
+            {
+                <div class="empty-state">
+                    <i class="fas fa-filter-circle-xmark"></i>
+                    <h5>No entries matched</h5>
+                    <p>Try a different date, level, or keyword.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="logs-table" id="logsTable">
+                        <thead>
+                            <tr>
+                                <th class="col-ts">Timestamp</th>
+                                <th class="col-lvl">Level</th>
+                                <th class="col-cat">Category</th>
+                                <th>Message</th>
+                                <th class="col-path">Path</th>
+                                <th class="col-user">User</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsBody">
+                            @foreach (var entry in Model.Logs)
+                            {
+                                var rowClass = entry.Level switch {
+                                    AppLogLevel.Error   => "row-error",
+                                    AppLogLevel.Warning => "row-warn",
+                                    _                   => "row-info"
+                                };
+                                var badge = entry.Level switch {
+                                    AppLogLevel.Information => "<span class=\"log-badge badge-info\">INFO</span>",
+                                    AppLogLevel.Warning     => "<span class=\"log-badge badge-warn\">WARN</span>",
+                                    AppLogLevel.Error       => "<span class=\"log-badge badge-error\">ERROR</span>",
+                                    _                       => ""
+                                };
+                                <tr class="log-row @rowClass"
+                                    data-text="@(entry.Message + " " + entry.Category + " " + entry.RequestPath + " " + entry.Exception)">
+                                    <td class="col-ts cell-mono">@entry.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td class="col-lvl">@Html.Raw(badge)</td>
+                                    <td class="col-cat cell-muted">@entry.Category</td>
+                                    <td>
+                                        <div class="log-msg">@entry.Message</div>
+                                        @if (!string.IsNullOrEmpty(entry.Exception))
+                                        {
+                                            <div class="log-exc"><i class="fas fa-bug"></i> @entry.Exception</div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(entry.StackTrace))
+                                        {
+                                            <details class="log-trace-wrap">
+                                                <summary>Stack trace</summary>
+                                                <pre class="log-trace">@entry.StackTrace</pre>
+                                            </details>
+                                        }
+                                    </td>
+                                    <td class="col-path cell-muted cell-mono">@entry.RequestPath</td>
+                                    <td class="col-user cell-muted">@entry.UserId</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination bar -->
+                <div class="logs-pagination">
+                    <div class="logs-pagination-info">
+                        Page <strong>@Model.Page</strong> of <strong>@Model.TotalPages</strong>
+                        &nbsp;·&nbsp; @Model.TotalCount total entries
+                    </div>
+                    <div class="logs-pagination-nav">
+                        @if (Model.HasPrev)
+                        {
+                            <a href="@PageUrl(1)" class="pager-btn" title="First">
+                                <i class="fas fa-angles-left"></i>
+                            </a>
+                            <a href="@PageUrl(Model.Page - 1)" class="pager-btn" title="Previous">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="pager-btn disabled"><i class="fas fa-angles-left"></i></span>
+                            <span class="pager-btn disabled"><i class="fas fa-angle-left"></i></span>
+                        }
+
+                        @{
+                            int startPage = Math.Max(1, Model.Page - 2);
+                            int endPage   = Math.Min(Model.TotalPages, startPage + 4);
+                            startPage     = Math.Max(1, endPage - 4);
+                        }
+                        @for (int p = startPage; p <= endPage; p++)
+                        {
+                            <a href="@PageUrl(p)" class="pager-btn @(p == Model.Page ? "active" : "")">@p</a>
+                        }
+
+                        @if (Model.HasNext)
+                        {
+                            <a href="@PageUrl(Model.Page + 1)" class="pager-btn" title="Next">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                            <a href="@PageUrl(Model.TotalPages)" class="pager-btn" title="Last">
+                                <i class="fas fa-angles-right"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="pager-btn disabled"><i class="fas fa-angle-right"></i></span>
+                            <span class="pager-btn disabled"><i class="fas fa-angles-right"></i></span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="logs-empty-hint">
+            <i class="fas fa-sliders"></i>
+            <p>Pick a filter above and hit Apply to load logs.</p>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<style>
+.logs-shell {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.logs-header { padding-bottom: 8px; }
+.logs-title  { margin: 4px 0 6px; font-size: 1.75rem; font-weight: 800; line-height: 1.15; }
+.logs-subtitle { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.logs-filter-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+}
+
+.logs-error-message {
+    margin-bottom: 14px; padding: 10px 12px;
+    border: 1px solid #fecaca; border-radius: 8px;
+    background: #fff8f8; color: #b42318; font-size: 0.84rem;
+}
+
+.logs-filter-row {
+    display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+}
+
+.logs-filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+.logs-filter-search { flex: 1; min-width: 200px; }
+.logs-filter-actions { display: flex; gap: 8px; align-items: flex-end; padding-bottom: 1px; }
+
+.logs-date-chips {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);
+}
+
+.logs-date-chips-label {
+    font-size: 0.72rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em; margin-right: 2px;
+}
+
+.date-chip {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 99px;
+    padding: 4px 13px; font-size: 0.75rem; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+    font-family: inherit;
+}
+.date-chip:hover { border-color: var(--text); color: var(--text); }
+.date-chip.active { background: var(--text); border-color: var(--text); color: #fff; }
+
+.logs-stats-row {
+    display: flex; align-items: center;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: var(--radius-lg); padding: 18px 28px;
+}
+
+.logs-stat { display: flex; flex-direction: column; gap: 2px; padding: 0 28px 0 0; }
+.logs-stat:first-child { padding-left: 0; }
+.logs-stat-value { font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--text); }
+.logs-stat-label { font-size: 0.75rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+.logs-stat-divider { width: 1px; height: 36px; background: var(--line); margin-right: 28px; flex-shrink: 0; }
+
+.logs-table-card {
+    background: #fff; border: 1px solid var(--line);
+    border-radius: var(--radius-lg); overflow: hidden;
+}
+
+.logs-table-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--line); gap: 12px; flex-wrap: wrap;
+}
+
+.logs-table-title { font-size: 0.9rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.logs-table-count { font-size: 0.78rem; font-weight: 500; color: var(--muted); }
+
+.logs-live-search-wrap { position: relative; width: 220px; }
+.logs-live-search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 0.75rem; pointer-events: none;
+}
+.logs-live-search {
+    width: 100%; height: 36px; padding: 0 12px 0 30px;
+    border: 1px solid var(--line); border-radius: 99px; background: var(--surface);
+    font-size: 0.82rem; font-family: inherit; color: var(--text);
+    transition: border-color 160ms ease;
+}
+.logs-live-search:focus { outline: none; border-color: var(--text); background: #fff; }
+
+.logs-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.logs-table thead th {
+    padding: 10px 14px; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+    border-bottom: 1px solid var(--line); background: var(--surface); white-space: nowrap;
+}
+.logs-table tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+.logs-table tbody tr:last-child td { border-bottom: none; }
+.logs-table tbody tr:hover td { background: #fafafa; }
+
+.col-ts   { width: 155px; }
+.col-lvl  { width: 72px; }
+.col-cat  { width: 130px; }
+.col-path { width: 150px; }
+.col-user { width: 80px; }
+
+.row-error td { background: #fff8f8; }
+.row-warn  td { background: #fffdf0; }
+.row-error:hover td { background: #fff2f2 !important; }
+.row-warn:hover  td { background: #fffbe6 !important; }
+
+.log-msg  { line-height: 1.5; }
+.log-exc  { color: #c0392b; font-size: 0.75rem; margin-top: 4px; }
+.log-trace-wrap { margin-top: 5px; }
+.log-trace-wrap summary { font-size: 0.72rem; color: var(--muted); cursor: pointer; user-select: none; }
+.log-trace {
+    font-size: 0.7rem; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 10px; margin-top: 5px;
+    white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;
+}
+
+/* ── Pagination bar ─────────────────────────────────────────── */
+.logs-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.logs-pagination-info { font-size: 0.82rem; color: var(--muted); }
+
+.logs-pagination-nav { display: flex; align-items: center; gap: 4px; }
+
+.pager-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 34px; padding: 0 8px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--text);
+    font-size: 0.82rem; font-weight: 600;
+    text-decoration: none;
+    transition: border-color 160ms ease, background 160ms ease;
+    cursor: pointer;
+}
+.pager-btn:hover { border-color: var(--text); background: var(--surface); text-decoration: none; color: var(--text); }
+.pager-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+.pager-btn.disabled { opacity: 0.35; pointer-events: none; }
+
+.logs-empty-hint {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 60px 0; color: var(--muted); text-align: center;
+}
+.logs-empty-hint i { font-size: 1.4rem; }
+.logs-empty-hint p { margin: 0; font-size: 0.9rem; }
+
+.log-row.hidden { display: none; }
+
+@@media (max-width: 768px) {
+    .logs-shell { padding: 28px 16px 60px; }
+    .logs-filter-row { flex-direction: column; }
+    .logs-filter-field, .logs-filter-search { width: 100%; }
+    .col-path, .col-user { display: none; }
+    .logs-stats-row { flex-wrap: wrap; gap: 16px; padding: 16px 20px; }
+    .logs-stat-divider { display: none; }
+    .logs-stat { padding: 0; }
+    .logs-pagination { flex-direction: column; align-items: flex-start; }
+}
+</style>
+
+<script>
+    function setDate(value) {
+        document.getElementById("datePicker").value = value;
+        document.getElementById("filterForm").submit();
+    }
+
+    const liveSearch = document.getElementById("liveSearch");
+    const logsBody   = document.getElementById("logsBody");
+
+    if (liveSearch && logsBody) {
+        liveSearch.addEventListener("input", function () {
+            const term = this.value.trim().toLowerCase();
+            logsBody.querySelectorAll("tr.log-row").forEach(row => {
+                const match = !term || (row.dataset.text || "").toLowerCase().includes(term);
+                row.classList.toggle("hidden", !match);
+            });
+        });
+    }
+</script>
+}

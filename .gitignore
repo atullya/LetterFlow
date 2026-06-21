@@ -1,5 +1,4 @@
 ## ── .NET / ASP.NET Core ──────────────────────────────────────────────────────
-
 # Build output
 bin/
 obj/
@@ -24,9 +23,9 @@ packages/
 publish/
 **/publish/
 
-# Runtime / logs
-Logs/
-!Logs/.gitkeep
+# Runtime / logs — only the app's runtime log output directory, NOT Views/Logs
+/LetterTemplatePractice/Logs/*
+!/LetterTemplatePractice/Logs/.gitkeep
 *.log
 *.trn
 
