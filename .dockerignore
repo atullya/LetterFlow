@@ -4,7 +4,7 @@
 **/.vscode
 **/bin
 **/obj
-**/Logs
+LetterTemplatePractice/Logs
 **/*.user
 **/*.suo
 **/node_modules
