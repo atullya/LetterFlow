@@ -212,5 +212,165 @@ namespace LetterTemplatePractice.Auth
             _logger.LogInformation(Category, $"New Google user registered: '{username}'.");
             return newUser;
         }
+
+        // ── Admin user management ────────────────────────────────────────────
+
+        public async Task<(bool Success, string? Error, ApplicationUser? User)> AdminCreateUserAsync(
+            string username, string email, string password, string role, string? displayName = null)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return (false, "Username is required.", null);
+
+            if (string.IsNullOrWhiteSpace(email))
+                return (false, "Email is required.", null);
+
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+                return (false, "Password must be at least 8 characters.", null);
+
+            role = NormalizeRole(role);
+
+            if (await UsernameExistsAsync(username))
+                return (false, "Username is already taken.", null);
+
+            if (await EmailExistsAsync(email))
+                return (false, "Email is already registered.", null);
+
+            var user = new ApplicationUser
+            {
+                Username     = username.Trim(),
+                Email        = email.Trim().ToLowerInvariant(),
+                DisplayName  = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim(),
+                PasswordHash = _hasher.Hash(password),
+                Role         = role,
+                IsActive     = true,
+                CreatedAt    = DateTime.UtcNow,
+                UpdatedAt    = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(Category, $"Admin created user '{user.Username}' with role '{user.Role}'.");
+            return (true, null, user);
+        }
+
+        public async Task<(bool Success, string? Error)> AdminUpdateUserAsync(
+            int userId, string username, string email, string? displayName, string role, bool isActive, bool isHiddenProfile)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user is null) return (false, "User not found.");
+
+            if (string.IsNullOrWhiteSpace(username))
+                return (false, "Username is required.");
+
+            if (string.IsNullOrWhiteSpace(email))
+                return (false, "Email is required.");
+
+            role = NormalizeRole(role);
+
+            // Prevent demoting / deactivating the last active admin
+            if (user.Role == UserRoles.Admin && (role != UserRoles.Admin || !isActive))
+            {
+                var otherActiveAdmins = await _context.Users.CountAsync(u =>
+                    u.Id != userId && u.Role == UserRoles.Admin && u.IsActive);
+                if (otherActiveAdmins == 0)
+                    return (false, "Cannot demote or deactivate the last active admin.");
+            }
+
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            var trimmedUsername = username.Trim();
+
+            if (user.Username != trimmedUsername &&
+                await _context.Users.AnyAsync(u => u.Username == trimmedUsername && u.Id != userId))
+                return (false, "Username is already taken.");
+
+            if (user.Email != normalizedEmail &&
+                await _context.Users.AnyAsync(u => u.Email == normalizedEmail && u.Id != userId))
+                return (false, "Email is already registered.");
+
+            user.Username        = trimmedUsername;
+            user.Email           = normalizedEmail;
+            user.DisplayName     = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
+            user.Role            = role;
+            user.IsActive        = isActive;
+            user.IsHiddenProfile = isHiddenProfile;
+            user.UpdatedAt       = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation(Category, $"Admin updated user '{user.Username}' (id={user.Id}).");
+            return (true, null);
+        }
+
+        public async Task<(bool Success, string? Error)> AdminResetPasswordAsync(int userId, string newPassword)
+        {
+            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8)
+                return (false, "Password must be at least 8 characters.");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user is null) return (false, "User not found.");
+
+            user.PasswordHash = _hasher.Hash(newPassword);
+            user.UpdatedAt    = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation(Category, $"Admin reset password for user '{user.Username}' (id={user.Id}).");
+            return (true, null);
+        }
+
+        public async Task<(bool Success, string? Error)> AdminDeleteUserAsync(int userId, int actingAdminId)
+        {
+            if (userId == actingAdminId)
+                return (false, "You cannot delete your own account.");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user is null) return (false, "User not found.");
+
+            if (user.Role == UserRoles.Admin)
+            {
+                var otherActiveAdmins = await _context.Users.CountAsync(u =>
+                    u.Id != userId && u.Role == UserRoles.Admin && u.IsActive);
+                if (otherActiveAdmins == 0)
+                    return (false, "Cannot delete the last active admin.");
+            }
+
+            // Clear optional FKs that set-null on delete may still leave awkward states
+            await _context.AiJobs
+                .Where(j => j.OwnerUserId == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.OwnerUserId, (int?)null));
+
+            await _context.Reports
+                .Where(r => r.ResolvedById == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.ResolvedById, (int?)null));
+
+            await _context.PostViews
+                .Where(v => v.UserId == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.UserId, (int?)null));
+
+            await _context.NewsletterSubscriptions
+                .Where(s => s.UserId == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(s => s.UserId, (int?)null));
+
+            // Self-referential follows can trip cascade path issues — remove explicitly
+            await _context.Follows
+                .Where(f => f.FollowerId == userId || f.FollowingId == userId)
+                .ExecuteDeleteAsync();
+
+            // Notifications where user is actor or recipient
+            await _context.Notifications
+                .Where(n => n.RecipientId == userId || n.ActorId == userId)
+                .ExecuteDeleteAsync();
+
+            var username = user.Username;
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(Category, $"Admin deleted user '{username}' (id={userId}).");
+            return (true, null);
+        }
+
+        private static string NormalizeRole(string? role)
+            => string.Equals(role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase)
+                ? UserRoles.Admin
+                : UserRoles.User;
     }
 }

@@ -20,5 +20,13 @@ namespace LetterTemplatePractice.Auth
         Task<(bool Success, string? Error)> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
         Task<(bool Success, string? Error)> UpdateAvatarAsync(int userId, string avatarUrl);
         Task<ApplicationUser?> FindOrCreateGoogleUserAsync(string googleId, string email, string? displayName, string? avatarUrl);
+
+        // ── Admin user management ────────────────────────────────────────────
+        Task<(bool Success, string? Error, ApplicationUser? User)> AdminCreateUserAsync(
+            string username, string email, string password, string role, string? displayName = null);
+        Task<(bool Success, string? Error)> AdminUpdateUserAsync(
+            int userId, string username, string email, string? displayName, string role, bool isActive, bool isHiddenProfile);
+        Task<(bool Success, string? Error)> AdminResetPasswordAsync(int userId, string newPassword);
+        Task<(bool Success, string? Error)> AdminDeleteUserAsync(int userId, int actingAdminId);
     }
 }

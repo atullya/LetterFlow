@@ -1,0 +1,688 @@
+@model LetterTemplatePractice.Models.ViewModels.AdminUsersIndexViewModel
+@using LetterTemplatePractice.Models
+@{
+    ViewData["Title"] = "Users";
+    ViewData["MetaDescription"] = "Manage LetterFlow Stories users, roles, and accounts.";
+    var currentUserId = (int)(ViewBag.CurrentUserId ?? 0);
+
+    string PageUrl(int p)
+    {
+        var q = new Dictionary<string, string?>
+        {
+            ["search"] = Model.Search,
+            ["role"] = Model.Role,
+            ["status"] = Model.Status,
+            ["page"] = p.ToString(),
+            ["pageSize"] = Model.PageSize.ToString()
+        };
+        return "/Admin/Users?" + string.Join("&",
+            q.Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
+             .Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value!)}"));
+    }
+}
+
+<div class="ai-dash-shell">
+    <div class="ai-dash-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1 class="ai-dash-title">
+                <i class="fas fa-users" style="margin-right:10px;"></i>Users
+            </h1>
+            <p class="ai-dash-subtitle">
+                View all accounts, manage roles, create users, and reset passwords.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+            <i class="fas fa-user-plus"></i> Create User
+        </button>
+    </div>
+
+    <!-- Stat tiles -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#2563eb;">@Model.Total</span>
+            <span class="ai-tile-label">@(string.IsNullOrWhiteSpace(Model.Search) && string.IsNullOrWhiteSpace(Model.Role) && string.IsNullOrWhiteSpace(Model.Status) ? "Total Users" : "Matching")</span>
+        </div>
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#16a34a;">@Model.ActiveCount</span>
+            <span class="ai-tile-label">Active</span>
+        </div>
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#b45309;">@Model.AdminCount</span>
+            <span class="ai-tile-label">Admins</span>
+        </div>
+        <div class="ai-tile">
+            <span class="ai-tile-count" style="color:#dc2626;">@Model.InactiveCount</span>
+            <span class="ai-tile-label">Inactive</span>
+        </div>
+    </div>
+
+    @if (TempData["ToastMessage"] != null)
+    {
+        var toastType  = TempData["ToastType"]?.ToString() ?? "success";
+        var toastColor = toastType == "success" ? "#16a34a" : toastType == "warn" ? "#b45309" : "#dc2626";
+        var toastBg    = toastType == "success" ? "#f0fdf4" : toastType == "warn" ? "#fffbeb" : "#fef2f2";
+        <div style="padding:12px 16px;border-radius:10px;background:@toastBg;
+                    border:1px solid var(--line);font-size:0.875rem;
+                    color:@toastColor;font-weight:600;">
+            <i class="fas @(toastType == "success" ? "fa-check-circle" : "fa-exclamation-circle")"
+               style="margin-right:6px;"></i>@TempData["ToastMessage"]
+        </div>
+    }
+
+    <!-- Filters -->
+    <div class="ai-health-card">
+        <div class="ai-health-body" style="padding:16px 20px;">
+            <form method="get" action="/Admin/Users" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                <div style="flex:1;min-width:200px;">
+                    <label class="form-label" for="userSearch">Search</label>
+                    <input type="text" id="userSearch" name="search" class="form-control"
+                           placeholder="Username, email, or display name…"
+                           value="@Model.Search" />
+                </div>
+                <div style="min-width:140px;">
+                    <label class="form-label" for="roleFilter">Role</label>
+                    <select id="roleFilter" name="role" class="form-select">
+                        <option value="">All roles</option>
+                        <option value="@UserRoles.Admin" selected="@(Model.Role == UserRoles.Admin)">Admin</option>
+                        <option value="@UserRoles.User" selected="@(Model.Role == UserRoles.User)">User</option>
+                    </select>
+                </div>
+                <div style="min-width:140px;">
+                    <label class="form-label" for="statusFilter">Status</label>
+                    <select id="statusFilter" name="status" class="form-select">
+                        <option value="">All statuses</option>
+                        <option value="active" selected="@(Model.Status == "active")">Active</option>
+                        <option value="inactive" selected="@(Model.Status == "inactive")">Inactive</option>
+                    </select>
+                </div>
+                <div style="min-width:100px;">
+                    <label class="form-label" for="pageSizeSelect">Per page</label>
+                    <select id="pageSizeSelect" name="pageSize" class="form-select">
+                        @foreach (var s in new[] { 10, 20, 50, 100 })
+                        {
+                            <option value="@s" selected="@(Model.PageSize == s)">@s</option>
+                        }
+                    </select>
+                </div>
+                <input type="hidden" name="page" value="1" />
+                <div style="display:flex;gap:8px;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <a href="/Admin/Users" class="btn btn-secondary" title="Clear filters">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users table -->
+    <div class="ai-chart-card">
+        <div class="ai-chart-header">
+            <span class="ai-chart-title">
+                All Users
+                @if (Model.Total > 0)
+                {
+                    <span style="margin-left:8px;background:#dbeafe;color:#2563eb;
+                                 font-size:0.75rem;font-weight:700;padding:2px 10px;
+                                 border-radius:999px;">@Model.Total</span>
+                }
+            </span>
+            <span style="font-size:0.8rem;color:var(--muted);">
+                Page @Model.Page of @Model.TotalPages
+            </span>
+        </div>
+        <div style="padding:0;overflow-x:auto;">
+            @if (!Model.Users.Any())
+            {
+                <p style="padding:24px 20px;color:var(--muted);font-size:0.875rem;margin:0;">
+                    <i class="fas fa-user-slash" style="margin-right:6px;"></i>
+                    No users found. Try adjusting filters or create a new user.
+                </p>
+            }
+            else
+            {
+                <table class="ai-table users-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Posts</th>
+                            <th>Joined</th>
+                            <th>Last Login</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in Model.Users)
+                        {
+                            var isSelf = u.Id == currentUserId;
+                            var initial = !string.IsNullOrEmpty(u.DisplayName)
+                                ? u.DisplayName.Substring(0, 1).ToUpper()
+                                : u.Username.Substring(0, 1).ToUpper();
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        @if (!string.IsNullOrEmpty(u.AvatarUrl))
+                                        {
+                                            <img src="@u.AvatarUrl" alt="@u.Username" class="user-avatar" />
+                                        }
+                                        else
+                                        {
+                                            <span class="user-avatar-fallback">@initial</span>
+                                        }
+                                        <div class="user-meta">
+                                            <span class="user-name">
+                                                @(u.DisplayName ?? u.Username)
+                                                @if (isSelf)
+                                                {
+                                                    <span class="you-badge">You</span>
+                                                }
+                                            </span>
+                                            <a href="/@@@u.Username" class="user-handle" target="_blank">@@@u.Username</a>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="muted-cell">@u.Email</td>
+                                <td>
+                                    @if (u.Role == UserRoles.Admin)
+                                    {
+                                        <span class="role-pill role-admin"><i class="fas fa-shield-halved"></i> Admin</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="role-pill role-user"><i class="fas fa-user"></i> User</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (u.IsActive)
+                                    {
+                                        <span class="status-pill pill-active"><i class="fas fa-circle" style="font-size:0.45rem;"></i> Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-pill pill-inactive"><i class="fas fa-circle" style="font-size:0.45rem;"></i> Inactive</span>
+                                    }
+                                    @if (u.IsHiddenProfile)
+                                    {
+                                        <span class="status-pill pill-hidden" style="margin-left:4px;"><i class="fas fa-eye-slash"></i></span>
+                                    }
+                                </td>
+                                <td class="muted-cell">@u.PostCount</td>
+                                <td class="muted-cell">@u.CreatedAt.ToString("MMM d, yyyy")</td>
+                                <td class="muted-cell">
+                                    @(u.LastLoginAt.HasValue ? u.LastLoginAt.Value.ToString("MMM d, yyyy") : "—")
+                                </td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button type="button" class="btn btn-sm btn-secondary"
+                                                title="Edit user"
+                                                data-bs-toggle="modal" data-bs-target="#editUserModal"
+                                                data-id="@u.Id"
+                                                data-username="@u.Username"
+                                                data-email="@u.Email"
+                                                data-displayname="@(u.DisplayName ?? "")"
+                                                data-role="@u.Role"
+                                                data-active="@u.IsActive.ToString().ToLower()"
+                                                data-hidden="@u.IsHiddenProfile.ToString().ToLower()">
+                                            <i class="fas fa-pen"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-secondary"
+                                                title="Reset password"
+                                                data-bs-toggle="modal" data-bs-target="#resetPasswordModal"
+                                                data-id="@u.Id"
+                                                data-username="@u.Username">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                        @if (!isSelf)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    title="Delete user"
+                                                    data-bs-toggle="modal" data-bs-target="#deleteUserModal"
+                                                    data-id="@u.Id"
+                                                    data-username="@u.Username">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <div class="users-pagination">
+                @if (Model.Page > 1)
+                {
+                    <a href="@PageUrl(Model.Page - 1)" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-chevron-left"></i> Prev
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn-sm btn-secondary" style="opacity:.45;pointer-events:none;">
+                        <i class="fas fa-chevron-left"></i> Prev
+                    </span>
+                }
+
+                <span class="page-indicator">@Model.Page / @Model.TotalPages</span>
+
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <a href="@PageUrl(Model.Page + 1)" class="btn btn-sm btn-secondary">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn-sm btn-secondary" style="opacity:.45;pointer-events:none;">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ── Create User Modal ─────────────────────────────────────────────────── -->
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content users-modal">
+            <form asp-controller="Users" asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createUserModalLabel">
+                        <i class="fas fa-user-plus" style="margin-right:8px;"></i>Create User
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="createUsername">Username</label>
+                        <input id="createUsername" name="Username" class="form-control" required
+                               minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+"
+                               placeholder="letters, numbers, underscores" />
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="createEmail">Email</label>
+                        <input id="createEmail" name="Email" type="email" class="form-control" required maxlength="100"
+                               placeholder="user@example.com" />
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="createDisplayName">Display Name <span class="optional">(optional)</span></label>
+                        <input id="createDisplayName" name="DisplayName" class="form-control" maxlength="100"
+                               placeholder="How they appear to others" />
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="createRole">Role</label>
+                        <select id="createRole" name="Role" class="form-select">
+                            <option value="@UserRoles.User" selected>User</option>
+                            <option value="@UserRoles.Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="createPassword">Password</label>
+                        <input id="createPassword" name="Password" type="password" class="form-control"
+                               required minlength="8" autocomplete="new-password"
+                               placeholder="At least 8 characters" />
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label" for="createConfirmPassword">Confirm Password</label>
+                        <input id="createConfirmPassword" name="ConfirmPassword" type="password" class="form-control"
+                               required minlength="8" autocomplete="new-password" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Create User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Edit User Modal ───────────────────────────────────────────────────── -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content users-modal">
+            <form asp-controller="Users" asp-action="Edit" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" id="editId" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editUserModalLabel">
+                        <i class="fas fa-pen" style="margin-right:8px;"></i>Edit User
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="editUsername">Username</label>
+                        <input id="editUsername" name="Username" class="form-control" required
+                               minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+" />
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="editEmail">Email</label>
+                        <input id="editEmail" name="Email" type="email" class="form-control" required maxlength="100" />
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="editDisplayName">Display Name <span class="optional">(optional)</span></label>
+                        <input id="editDisplayName" name="DisplayName" class="form-control" maxlength="100" />
+                    </div>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="editRole">Role</label>
+                        <select id="editRole" name="Role" class="form-select">
+                            <option value="@UserRoles.User">User</option>
+                            <option value="@UserRoles.Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="users-check-row">
+                        <label class="users-check">
+                            <input type="checkbox" name="IsActive" id="editIsActive" value="true" />
+                            <span>Active account</span>
+                        </label>
+                        <label class="users-check">
+                            <input type="checkbox" name="IsHiddenProfile" id="editIsHiddenProfile" value="true" />
+                            <span>Hide profile</span>
+                        </label>
+                    </div>
+                    <input type="hidden" name="IsActive" id="editIsActiveFalse" value="false" disabled />
+                    <input type="hidden" name="IsHiddenProfile" id="editIsHiddenFalse" value="false" disabled />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Reset Password Modal ──────────────────────────────────────────────── -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content users-modal">
+            <form asp-controller="Users" asp-action="ResetPassword" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" id="resetId" />
+                <input type="hidden" name="Username" id="resetUsername" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resetPasswordModalLabel">
+                        <i class="fas fa-key" style="margin-right:8px;"></i>Reset Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="reset-hint">
+                        Set a new password for <strong id="resetUsernameLabel"></strong>.
+                        They will use this password on their next login.
+                    </p>
+                    <div class="form-row mb-3">
+                        <label class="form-label" for="resetNewPassword">New Password</label>
+                        <input id="resetNewPassword" name="NewPassword" type="password" class="form-control"
+                               required minlength="8" autocomplete="new-password"
+                               placeholder="At least 8 characters" />
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label" for="resetConfirmPassword">Confirm Password</label>
+                        <input id="resetConfirmPassword" name="ConfirmPassword" type="password" class="form-control"
+                               required minlength="8" autocomplete="new-password" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-key"></i> Reset Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── Delete User Modal ─────────────────────────────────────────────────── -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content users-modal">
+            <form asp-controller="Users" asp-action="Delete" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" id="deleteId" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteUserModalLabel" style="color:#dc2626;">
+                        <i class="fas fa-trash" style="margin-right:8px;"></i>Delete User
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="delete-warn">
+                        Are you sure you want to permanently delete
+                        <strong id="deleteUsernameLabel"></strong>?
+                    </p>
+                    <p class="delete-detail">
+                        This removes their posts, comments, likes, follows, and other related data.
+                        This action cannot be undone.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete Permanently
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+.ai-tile {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+}
+.ai-tile-count { font-size: 2rem; font-weight: 800; line-height: 1; }
+.ai-tile-label {
+    font-size: 0.75rem; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em;
+}
+.ai-health-body { padding: 20px; }
+
+.users-table .muted-cell { color: var(--muted); font-size: 0.84rem; }
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px;
+}
+.user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0;
+    border: 1px solid var(--line);
+}
+.user-avatar-fallback {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface, #f3f4f6); color: var(--text);
+    font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+    border: 1px solid var(--line);
+}
+.user-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.user-name {
+    font-weight: 700; font-size: 0.88rem; color: var(--text);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.user-handle {
+    font-size: 0.78rem; color: var(--muted); text-decoration: none;
+}
+.user-handle:hover { color: var(--text); text-decoration: underline; }
+
+.you-badge {
+    font-size: 0.68rem; font-weight: 700;
+    background: #dbeafe; color: #2563eb;
+    padding: 1px 7px; border-radius: 999px;
+}
+
+.role-pill, .status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 10px; border-radius: 999px;
+    font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+}
+.role-admin { background: #fef3c7; color: #b45309; }
+.role-user  { background: #f3f4f6; color: #4b5563; }
+.pill-active   { background: #dcfce7; color: #16a34a; }
+.pill-inactive { background: #fee2e2; color: #dc2626; }
+.pill-hidden   { background: #fee2e2; color: #dc2626; }
+
+.action-btns {
+    display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap;
+}
+.action-btns .btn { min-width: 34px; padding: 0 10px;    flex-shrink: 0;  }
+
+.users-pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line);
+}
+.page-indicator { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+
+.users-modal .modal-header {
+    border-bottom: 1px solid var(--line);
+    padding: 16px 20px;
+}
+.users-modal .modal-title {
+    font-size: 1rem; font-weight: 800; color: var(--text);
+    display: flex; align-items: center;
+}
+.users-modal .modal-body { padding: 20px; }
+.users-modal .modal-footer {
+    border-top: 1px solid var(--line);
+    padding: 14px 20px;
+    gap: 8px;
+}
+.users-modal .modal-content {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 50px rgba(0,0,0,.12);
+}
+.optional { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.users-check-row {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 4px;
+}
+.users-check {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.9rem; font-weight: 600; color: var(--text);
+    cursor: pointer; margin: 0;
+}
+.users-check input { width: 16px; height: 16px; accent-color: var(--text); }
+.reset-hint { margin: 0 0 16px; font-size: 0.9rem; color: var(--text); }
+.delete-warn { margin: 0 0 8px; font-size: 0.95rem; color: var(--text); font-weight: 600; }
+.delete-detail { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+.btn-danger {
+    background: #dc2626; color: #fff; border-color: #dc2626;
+}
+.btn-danger:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+@@media (max-width: 900px) {
+    .ai-dash-shell > div[style*="grid-template-columns:repeat(4"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@@media (max-width: 768px) {
+    .ai-dash-shell { padding: 28px 16px 60px; }
+}
+</style>
+<script>
+(function () {
+    // Edit modal population
+    var editModal = document.getElementById('editUserModal');
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            if (!btn) return;
+            document.getElementById('editId').value = btn.getAttribute('data-id') || '';
+            document.getElementById('editUsername').value = btn.getAttribute('data-username') || '';
+            document.getElementById('editEmail').value = btn.getAttribute('data-email') || '';
+            document.getElementById('editDisplayName').value = btn.getAttribute('data-displayname') || '';
+            document.getElementById('editRole').value = btn.getAttribute('data-role') || 'User';
+            document.getElementById('editIsActive').checked = btn.getAttribute('data-active') === 'true';
+            document.getElementById('editIsHiddenProfile').checked = btn.getAttribute('data-hidden') === 'true';
+        });
+
+        // Ensure unchecked checkboxes still post false
+        editModal.querySelector('form').addEventListener('submit', function () {
+            var active = document.getElementById('editIsActive');
+            var hidden = document.getElementById('editIsHiddenProfile');
+            var activeFalse = document.getElementById('editIsActiveFalse');
+            var hiddenFalse = document.getElementById('editIsHiddenFalse');
+            activeFalse.disabled = active.checked;
+            hiddenFalse.disabled = hidden.checked;
+        });
+    }
+
+    // Reset password modal
+    var resetModal = document.getElementById('resetPasswordModal');
+    if (resetModal) {
+        resetModal.addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            if (!btn) return;
+            var username = btn.getAttribute('data-username') || '';
+            document.getElementById('resetId').value = btn.getAttribute('data-id') || '';
+            document.getElementById('resetUsername').value = username;
+            document.getElementById('resetUsernameLabel').textContent = '@@' + username;
+            document.getElementById('resetNewPassword').value = '';
+            document.getElementById('resetConfirmPassword').value = '';
+        });
+    }
+
+    // Delete modal
+    var deleteModal = document.getElementById('deleteUserModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            if (!btn) return;
+            var username = btn.getAttribute('data-username') || '';
+            document.getElementById('deleteId').value = btn.getAttribute('data-id') || '';
+            document.getElementById('deleteUsernameLabel').textContent = '@@' + username;
+        });
+    }
+
+    // Client-side password match checks
+    function wirePasswordMatch(formSelector, aId, bId) {
+        var form = document.querySelector(formSelector);
+        if (!form) return;
+        form.addEventListener('submit', function (e) {
+            var a = document.getElementById(aId);
+            var b = document.getElementById(bId);
+            if (a && b && a.value !== b.value) {
+                e.preventDefault();
+                b.setCustomValidity('Passwords do not match.');
+                b.reportValidity();
+            } else if (b) {
+                b.setCustomValidity('');
+            }
+        });
+    }
+    wirePasswordMatch('#createUserModal form', 'createPassword', 'createConfirmPassword');
+    wirePasswordMatch('#resetPasswordModal form', 'resetNewPassword', 'resetConfirmPassword');
+})();
+</script>
+}
