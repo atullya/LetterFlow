@@ -541,7 +541,7 @@
 }
 </style>
 
-<script src="https://cdn.tiny.cloud/1/81o0jisqpcft2bdbsj44ru6xu3vaw5nab39x3z4hl5h1lrrn/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="~/lib/tinymce/tinymce.min.js" asp-append-version="true"></script>
 <script>
     // ── Autosave key — unique per post (new vs editing) ───────────────────────
     const DRAFT_KEY = 'lf_draft_@(Model.Id.HasValue ? Model.Id.Value.ToString() : "new")';
@@ -604,7 +604,7 @@
         selector: "#storyEditor",
         height: 420,
         menubar: false,
-        plugins: ["advlist","autolink","lists","link","image","table","code","codesample","fullscreen","help","wordcount","searchreplace"],
+        plugins: ["autolink","lists","link","image","table","code","codesample","fullscreen","help","wordcount","searchreplace"],
         toolbar: "undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist blockquote | link image table | codesample code fullscreen",
         codesample_languages: [
             { text: "HTML/XML",    value: "markup"     },

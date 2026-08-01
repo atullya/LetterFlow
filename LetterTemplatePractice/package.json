@@ -1,0 +1,7 @@
+{
+  "name": "letterflow-practice",
+  "private": true,
+  "dependencies": {
+    "tinymce": "^7.7.3"
+  }
+}
