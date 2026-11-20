@@ -2,17 +2,27 @@ using LetterTemplatePractice.Auth;
 using LetterTemplatePractice.BackgroundServices;
 using LetterTemplatePractice.Data;
 using LetterTemplatePractice.Models;
+using LetterTemplatePractice.Models.Configuration;
 using LetterTemplatePractice.Services;
-using Logging;using Microsoft.AspNetCore.Authentication.Cookies;
+using Logging;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+// ---- SSO configuration section ----
+builder.Services.Configure<SsoSettings>(builder.Configuration.GetSection("Sso"));
+
+var sso = builder.Configuration.GetSection("Sso").Get<SsoSettings>() ?? new SsoSettings();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -52,6 +62,85 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
         options.SignInScheme = ExternalScheme;
         options.SaveTokens   = true;
+    })
+    .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    {
+        options.Authority = sso.Authority;
+        options.ClientId = sso.ClientId;
+        options.ClientSecret = sso.ClientSecret;
+        options.ResponseType = sso.ResponseType;
+        options.ResponseMode = sso.ResponseMode;
+        options.CallbackPath = sso.CallbackPath;
+        options.SignedOutCallbackPath = sso.SignedOutCallbackPath;
+        options.RemoteSignOutPath = sso.RemoteSignOutPath;
+        options.SaveTokens = sso.SaveTokens;
+        options.GetClaimsFromUserInfoEndpoint = sso.GetClaimsFromUserInfoEndpoint;
+
+        foreach (var scope in sso.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            options.Scope.Add(scope);
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            NameClaimType = "name",
+            RoleClaimType = "role",
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidIssuer = sso.Authority,
+            ValidAudience = sso.ClientId
+        };
+
+        options.Events = new OpenIdConnectEvents
+        {
+            OnRedirectToIdentityProvider = ctx =>
+            {
+                ctx.ProtocolMessage.Prompt = "login";
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = async ctx =>
+            {
+                var authService = ctx.HttpContext.RequestServices
+                    .GetRequiredService<LetterTemplatePractice.Auth.IAuthService>();
+
+                var email = ctx.Principal.FindFirstValue(ClaimTypes.Email);
+                var displayName = ctx.Principal.FindFirstValue(ClaimTypes.Name);
+                var avatarUrl = ctx.Principal.FindFirstValue("picture")
+                    ?? ctx.Principal.FindFirstValue("avatar_url");
+
+                var user = await authService.FindOrCreateSsoUserAsync(email, displayName, avatarUrl);
+                if (user is null)
+                {
+                    ctx.HandleResponse();
+                    ctx.Response.Redirect("/Account/AccessDenied?error=account_not_found");
+                    return;
+                }
+
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new(ClaimTypes.Name, user.Username),
+                    new(ClaimTypes.Email, user.Email),
+                    new(ClaimTypes.Role, user.Role)
+                };
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                ctx.Principal = new ClaimsPrincipal(identity);
+                ctx.Success();
+            },
+            OnAuthenticationFailed = ctx =>
+            {
+                ctx.HandleResponse();
+                ctx.Response.Redirect("/Account/AccessDenied?error=" + Uri.EscapeDataString(ctx.Exception.Message));
+                return Task.CompletedTask;
+            }
+        };
+
+        if (builder.Environment.IsDevelopment())
+        {
+            options.RequireHttpsMetadata = false;
+            options.BackchannelHttpHandler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+            };
+        }
     });
 
 builder.Services.AddAuthorization();

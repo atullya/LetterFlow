@@ -213,6 +213,51 @@ namespace LetterTemplatePractice.Auth
             return newUser;
         }
 
+        public async Task<ApplicationUser?> FindOrCreateSsoUserAsync(
+            string email, string? displayName, string? avatarUrl)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant());
+            if (user is not null)
+            {
+                if (!user.IsActive) return null;
+
+                user.LastLoginAt = DateTime.UtcNow;
+                if (avatarUrl is not null) user.AvatarUrl = avatarUrl;
+                if (displayName is not null && user.DisplayName is null) user.DisplayName = displayName;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation(Category, $"SSO user '{user.Username}' logged in.");
+                return user;
+            }
+
+            var baseUsername = email.Split('@')[0];
+            var username = baseUsername;
+            var suffix = 1;
+            while (await _context.Users.AnyAsync(u => u.Username == username))
+                username = $"{baseUsername}{suffix++}";
+
+            var newUser = new ApplicationUser
+            {
+                Username     = username,
+                Email        = email.ToLowerInvariant(),
+                DisplayName  = displayName ?? username,
+                AvatarUrl    = avatarUrl,
+                PasswordHash = null,
+                Role         = UserRoles.User,
+                IsActive     = true,
+                CreatedAt    = DateTime.UtcNow,
+                UpdatedAt    = DateTime.UtcNow,
+                LastLoginAt  = DateTime.UtcNow
+            };
+
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(Category, $"New SSO user registered: '{username}'.");
+            return newUser;
+        }
+
         // ── Admin user management ────────────────────────────────────────────
 
         public async Task<(bool Success, string? Error, ApplicationUser? User)> AdminCreateUserAsync(

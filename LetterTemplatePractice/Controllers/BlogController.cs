@@ -877,7 +877,13 @@ namespace LetterTemplatePractice.Controllers
 
         private int GetRequiredUserId()
         {
-            return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var rawValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                  ?? User.FindFirstValue("sub");
+
+            if (string.IsNullOrEmpty(rawValue) || !int.TryParse(rawValue, out var id))
+                throw new InvalidOperationException("User id claim is missing or invalid.");
+
+            return id;
         }
 
         private int? GetCurrentUserId()

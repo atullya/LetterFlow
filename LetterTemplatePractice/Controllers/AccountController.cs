@@ -5,6 +5,7 @@ using LetterTemplatePractice.Models;
 using LetterTemplatePractice.Models.ViewModels;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -152,6 +153,17 @@ namespace LetterTemplatePractice.Controllers
                 RedirectUri = Url.Action(nameof(ExternalLoginCallback), new { returnUrl })
             };
             return Challenge(properties, "Google");
+        }
+
+        // ── GET /Account/SsoLogin (OpenIddict SSO) ────────────────────────────
+        [HttpGet]
+        public IActionResult SsoLogin(string? returnUrl = null)
+        {
+            var props = new AuthenticationProperties
+            {
+                RedirectUri = returnUrl ?? Url.Content("~/")
+            };
+            return Challenge(props, OpenIdConnectDefaults.AuthenticationScheme);
         }
 
         // ── GET /Account/ExternalLoginCallback ────────────────────────────────
